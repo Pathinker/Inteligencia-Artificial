@@ -55,7 +55,7 @@ class Dense(Layer): # Esta clase definira el método de foward progration.
 
         # Actualización de los parametrosm, es multiplicado por un algoritmo optimizador deniminado learningRate.
 
-        self.weights -= learningRate * outputGradient
+        self.weights -= learningRate * weightGradient
         self.bias -= learningRate * outputGradient
 
         # Es importante retorna la derivada respecto al input al subsecuente layer o capa.
