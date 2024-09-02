@@ -40,5 +40,5 @@ for i in range(epochs):
 
             grad = layer.backward(grad, learningRate)
 
-        error /= len(X)
-        print('%d/%d, error = %f' % (i + 1, epochs, error))
+    error /= len(X)
+    print('%d/%d, error = %f' % (i + 1, epochs, error))
