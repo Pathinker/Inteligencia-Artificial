@@ -10,7 +10,7 @@ class Activation(Layer):
         self.activation = activation
         self.activationPrime = activationPrime
 
-    def foward(self, input):
+    def forward(self, input):
 
         # Transladamos el factor de activación a la siguiente capa
 

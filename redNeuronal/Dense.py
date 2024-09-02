@@ -1,7 +1,7 @@
 from Layer import Layer
 import numpy as np
 
-class Dense(Layer): # Esta clase definira el método de foward progration.
+class Dense(Layer): # Esta clase definira el método de forward progration.
 
     # En una red Dense Layer todas las capas de los nodos previos se encuentran interconectados, cada camino representa y tiene asociado un peso.
     # El resultado brindado a la siguiente capa es la sumatoria de todas las neuronas multiplicado por su camino o peso con la sumatoria de un "Bias".
@@ -20,7 +20,7 @@ class Dense(Layer): # Esta clase definira el método de foward progration.
         self.weights = np.random.randn(outputSize, inputSize)
         self.bias = np.random.rand(outputSize, 1)
 
-    def foward(self, input):
+    def forward(self, input):
 
         self.input = input
 

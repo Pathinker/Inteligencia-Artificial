@@ -8,8 +8,8 @@ def mse(yTrue, yPred):
 
     # Promedio de los errores al cuadrado, el error cuadrático medio es empleado en las regresione simples para calcular el error. 
 
-    return np.mean(np.power(yTrue - yPred)) # Foruma general de error cuadrático medio
+    return np.mean(np.power(yTrue - yPred, 2)) # Foruma general de error cuadrático medio
 
-def mesPrime(yTrue, yPred):
+def msePrime(yTrue, yPred):
 
     return 2 * (yPred - yTrue) / np.size(yTrue)

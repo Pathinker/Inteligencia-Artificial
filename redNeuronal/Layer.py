@@ -7,7 +7,7 @@ class Layer:
         self.input = None
         self.output = None
 
-        def foward(self, input): 
+        def forward(self, input): 
             
             # Forward Propagation, actualiza el valor de las capas subsecuentes acorde el resultado obtenido
 
