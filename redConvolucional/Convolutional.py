@@ -48,8 +48,28 @@ class Convolutional(Layer):
 
         return self.output
     
-    def backward(self, input):
+    def backward(self, outputGradient, learningRate):
 
         # Método de ajuste y aprendizaje sobre la comparación del resultado valido al esperado.
 
-        pass
+        # Inicializar en 0 las matrices empleadas para retonar el desenso de gradiente.
+
+        kernelsGradient = np.zeros(self.kernelsShape)
+        inputGradient = np.zeros(self.inputShape)
+
+        # Ejecutamos el calculo del desenso de gradiente mediante las derivadas despejadas.
+        # dE/dX = Convolucion completa del kernel con el output.
+        # dE/Dk = Correlación cruzada del kernel con el input.
+        # dE/dB = Es directamente el parametro "outputGradient" ya que represente la derivada del error con respecto del resultado.
+
+        for i in range(self.depth):
+            for j in range(self.depth):
+
+                kernelsGradient[i][j] = signal.correlate2d(self.input[j], outputGradient[i], "valid") # dE/dK
+                inputGradient[i][j] = signal.convolve2d(outputGradient[i], self.kernels[i][j], "full") # dE/dX
+
+
+        self.kernels -= learningRate * kernelsGradient
+        self.biases -= learningRate * outputGradient
+
+        return inputGradient # Retornar en backpropagation.
