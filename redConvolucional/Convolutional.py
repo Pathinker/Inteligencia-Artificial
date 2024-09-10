@@ -20,8 +20,8 @@ class Convolutional(Layer):
         # Numero de matrices de la capa de entrada, ya que a cada matriz le corresponde un kernel de longitud cuadrada.
         self.kernelsShape = (depth, inputDepth, kernelSize, kernelSize)
         # Inicializar de manera aleatoria.
-        self.kernels = np.random.rand(*self.kernelsShape)
-        self.biases = np.random.rand(*self.outputShape)
+        self.kernels = np.random.randn(*self.kernelsShape)
+        self.biases = np.random.randn(*self.outputShape)
 
     def forward(self, input):
 
@@ -38,7 +38,7 @@ class Convolutional(Layer):
         self.output = np.copy(self.biases)
 
         for i in range(self.depth):
-            for j in range(self.depth):
+            for j in range(self.inputDepth):
 
                 # Empleamos la libreria spicy para ejecturar la cross correlation valid, es importante denotar que es no es conmutativo.
                 # Al disponer del sezgo es sumdo al resultado de la corss correlation entre los inputs y los kernels.
@@ -63,10 +63,10 @@ class Convolutional(Layer):
         # dE/dB = Es directamente el parametro "outputGradient" ya que represente la derivada del error con respecto del resultado.
 
         for i in range(self.depth):
-            for j in range(self.depth):
+            for j in range(self.inputDepth):
 
                 kernelsGradient[i][j] = signal.correlate2d(self.input[j], outputGradient[i], "valid") # dE/dK
-                inputGradient[i][j] = signal.convolve2d(outputGradient[i], self.kernels[i][j], "full") # dE/dX
+                inputGradient[j] += signal.convolve2d(outputGradient[i], self.kernels[i][j], "full") # dE/dX
 
 
         self.kernels -= learningRate * kernelsGradient
