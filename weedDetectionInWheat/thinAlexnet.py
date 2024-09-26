@@ -44,7 +44,7 @@ validacionDataFrame = tf.keras.utils.image_dataset_from_directory(
 
 # Después de cada convolución es normalizado los datos e incorporado un maxpool para abstraer las características más predominantes.
 
-# Versión reducida de Alexnet
+# Versión reducida de Alexnet.
 
 alexnet = keras.models.Sequential([
 
