@@ -5,28 +5,37 @@ primerPerdidaEntrenamiento = [0.7887, 0.5785, 0.4991, 0.4518, 0.4360, 0.4135, 0.
 primerAciertoValidacion = [0.4493, 0.8104, 0.8119, 0.8299, 0.8731, 0.8269, 0.8776, 0.8761, 0.8836, 0.8701, 0.8791, 0.8896, 0.8881, 0.8866, 0.8701, 0.9000, 0.8836, 0.8955, 0.8687, 0.8776, 0.8940, 0.8597, 0.9045, 0.9030, 0.8940, 0.9075, 0.9015, 0.8806, 0.9254, 0.8955, 0.7746, 0.9134, 0.9015, 0.8776, 0.9239, 0.9119, 0.9030, 0.8090, 0.9104, 0.8776, 0.8881, 0.9075, 0.8687, 0.9030, 0.8881, 0.8970, 0.8836, 0.9104, 0.8836, 0.9045]
 primerPerdidaValidacion = [0.7718, 0.4443, 0.4352, 0.4107, 0.3402, 0.4245, 0.3506, 0.3321, 0.3061, 0.3416, 0.3160, 0.2912, 0.2907, 0.3077, 0.3649, 0.2807, 0.3507, 0.2879, 0.4035, 0.3803, 0.2914, 0.5472, 0.2745, 0.2940, 0.3333, 0.2806, 0.2755, 0.4460, 0.2746, 0.3612, 0.4871, 0.2981, 0.4093, 0.4792, 0.2778, 0.3407, 0.3186, 1.4196, 0.3275, 0.3822, 0.5217, 0.3962, 0.6441, 0.4328, 0.5382, 0.5696, 0.4228, 0.3685, 0.5860, 0.4647]
 
+segundoAciertoEntrenamiento = [0.5618, 0.6043, 0.7326, 0.7166, 0.7910, 0.7616, 0.7567, 0.7950, 0.7819, 0.8240, 0.7844, 0.8317, 0.8042, 0.8367, 0.8356, 0.8113, 0.8341, 0.8511, 0.8631, 0.8556, 0.8737, 0.8571, 0.8787, 0.8525, 0.8822, 0.8776, 0.8715, 0.8607, 0.8393, 0.8865, 0.8963, 0.8930, 0.8931, 0.8961, 0.8889, 0.8870, 0.8904, 0.8971, 0.8991, 0.8869, 0.8790, 0.8934, 0.8962, 0.9018, 0.9064, 0.8964, 0.9036, 0.8979, 0.8996, 0.9043]
+segundoPerdidaEntrenamiento = [6.1537, 0.7675, 0.5843, 0.5780, 0.5331, 0.5992, 0.5953, 0.5649, 0.6010, 0.5371, 0.5453, 0.4996, 0.5469, 0.5029, 0.5481, 0.6113, 0.5198, 0.4797, 0.4629, 0.4599, 0.4165, 0.4723, 0.4480, 0.5618, 0.4297, 0.4454, 0.4331, 0.4844, 0.5465, 0.4117,0.3962, 0.4074, 0.3987, 0.3890, 0.3958, 0.4009, 0.4827, 0.3598, 0.4062, 0.4195, 0.4073, 0.3741, 0.3806, 0.3529, 0.3427, 0.3513, 0.3525, 0.3636, 0.3603, 0.3518]
+segundoAciertoValidacion = [0.4284, 0.8313, 0.7388, 0.8537, 0.2164, 0.8358, 0.8746, 0.7791, 0.8806, 0.8075, 0.8687, 0.8075, 0.8090, 0.8597, 0.8030, 0.8985, 0.7418, 0.9030, 0.4910, 0.9015, 0.8343, 0.8642, 0.8761, 0.8821, 0.9149, 0.9134, 0.8851, 0.8284, 0.9224, 0.9269, 0.9045, 0.9179, 0.9104, 0.8761, 0.9239, 0.8134, 0.9179, 0.9194, 0.9239, 0.9179, 0.8687, 0.9328, 0.9239, 0.8970, 0.9015, 0.8597, 0.9343, 0.8507, 0.9418, 0.9224]
+segundoPerdidaValidacion = [0.8142, 0.4420, 0.5442, 0.3852, 1.5360, 0.5297, 0.5723, 0.5049, 0.5400, 0.4935, 0.5247, 0.5537, 0.5471, 0.3975, 0.5535, 0.4394, 0.5870, 0.4047, 1.4650, 0.3969, 0.3561, 0.4807, 0.4145, 0.4079, 0.3638, 0.3543, 0.3920, 0.5391, 0.3391, 0.3372, 0.2751, 0.3481, 0.2465, 0.4073, 0.3051, 1.0882, 0.3243, 0.2721, 0.3034, 0.2592, 0.3576, 0.2852, 0.2802, 0.3038, 0.3153, 0.4529, 0.2487, 0.4004, 0.2441, 0.3272]
+
 epochs = []
 
 for i in range(50):
 
     epochs.append(i + 1)
 
-plt.title("Precisión Modelo")
-plt.plot(epochs, primerAciertoEntrenamiento, label = "Entrenamiento", color = "blue")
-plt.plot(epochs, primerAciertoValidacion, label = "Validación", color = "red")
-plt.axhline(y = max(primerAciertoEntrenamiento), linestyle = "--", color = "darkblue")
-plt.axhline(y = max(primerAciertoValidacion), linestyle = "--", color = "darkred")
-plt.xlabel("Epochs")
-plt.ylabel("Porcentaje")
-plt.legend()
-plt.show()
+def graficar(aciertoEntrenamiento, aciertoValidacion, perdidaEntrenamiento, perdidaValidacion):
 
-plt.title("Error Modelo")
-plt.plot(epochs, primerPerdidaEntrenamiento, label = "Entrenamiento", color = "blue")
-plt.plot(epochs, primerPerdidaValidacion, label = "Validación", color = "red")
-plt.axhline(y = min(primerPerdidaEntrenamiento), linestyle = "--", color = "darkblue")
-plt.axhline(y = min(primerPerdidaValidacion), linestyle = "--", color = "darkred")
-plt.xlabel("Epochs")
-plt.ylabel("Error")
-plt.legend()
-plt.show()
+    plt.title("Precisión Modelo")
+    plt.plot(epochs, aciertoEntrenamiento, label = "Entrenamiento", color = "blue")
+    plt.plot(epochs, aciertoValidacion, label = "Validación", color = "red")
+    plt.axhline(y = max(aciertoEntrenamiento), linestyle = "--", color = "darkblue")
+    plt.axhline(y = max(aciertoValidacion), linestyle = "--", color = "darkred")
+    plt.xlabel("Epochs")
+    plt.ylabel("Porcentaje")
+    plt.legend()
+    plt.show()
+
+    plt.title("Error Modelo")
+    plt.plot(epochs, perdidaEntrenamiento, label = "Entrenamiento", color = "blue")
+    plt.plot(epochs, perdidaValidacion, label = "Validación", color = "red")
+    plt.axhline(y = min(perdidaEntrenamiento), linestyle = "--", color = "darkblue")
+    plt.axhline(y = min(perdidaValidacion), linestyle = "--", color = "darkred")
+    plt.xlabel("Epochs")
+    plt.ylabel("Error")
+    plt.legend()
+    plt.show()
+
+graficar(segundoAciertoEntrenamiento, segundoAciertoValidacion, segundoPerdidaEntrenamiento, segundoPerdidaValidacion)
