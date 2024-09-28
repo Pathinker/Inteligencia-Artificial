@@ -3,7 +3,7 @@ from tensorflow import keras
 import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
-from sklearn.utils.class_weight import compute_class_weight
+from sklearn.utils.class_weight import compute_class_weight # type: ignore
 
 # Cargar el set de datos.
 
