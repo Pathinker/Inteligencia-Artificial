@@ -7,7 +7,7 @@ from sklearn.utils.class_weight import compute_class_weight # type: ignore
 
 # Cargar el set de datos.
 
-direccionDataset = Path("weedDetectionInWheat/Docknet")
+direccionDataset = Path("weedDetectionInWheat/Dataset")
 plantas = list(direccionDataset.glob('train/docks/*'))
 direccionEntrenamiento = direccionDataset / "train/"
 direccionValidamiento = direccionDataset / "valid/"

@@ -8,7 +8,7 @@ import tensorflow as tf
 
 # Normalizar el dataset de prueba y entrenamiento.
 
-direccionDataset = Path("weedDetectionInWheat/Docknet")
+direccionDataset = Path("weedDetectionInWheat/Dataset")
 
 # Busqueda profunda en subsecuentes niveles haciendo uso de **, * solamente busca en la carpeta inmediata.
 
