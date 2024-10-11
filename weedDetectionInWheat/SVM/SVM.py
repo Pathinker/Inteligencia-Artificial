@@ -1,42 +1,117 @@
 # --- El archivo requiere la ejecución previa preprocesamiento.py para generar el archivo picke de lectura de las imagenes ---
 
-import os 
 import random
-import numpy as np
-import cv2
 import pickle
 
-from tqdm import tqdm
-from pathlib import Path
-from sklearn.model_selection import train_test_split # type: ignore
 from sklearn.svm import SVC # type: ignore
+from sklearn.preprocessing import StandardScaler # type: ignore
 
-# Cargar imagenes desde el archivo picke
+# Cargar imagenes entrenamiento desde el archivo pickle
 
-pickIn = open("weedDetectionInWheat/SVM/data.pickle", "rb")
-imagenes = pickle.load(pickIn)
+pickIn = open("weedDetectionInWheat/SVM/dataEntrenamiento.pickle", "rb")
+imagenesEntrenamiento = pickle.load(pickIn)
 pickIn.close()
 
-random.shuffle(imagenes)
+# Cargar imagenes evaluación desde archivo pickle
 
-elementos = []
-etiquetas = []
+pickIn = open("weedDetectionInWheat/SVM/dataEvaluar.pickle", "rb")
+imagenesEvaluar = pickle.load(pickIn)
+pickIn.close()
 
-for feature, label in imagenes:
+# Indicar la etiqueta pertenenciente
 
-    elementos.append(feature)
-    etiquetas.append(label)
+random.shuffle(imagenesEntrenamiento)
 
-xTrain, xTest, yTrain, yTest = train_test_split(elementos, etiquetas, test_size = 0.10)
+elementosEntrenamiento = []
+etiquetasEntrenamiento = []
 
-model = SVC(C = 1, kernel = "poly", gamma = "auto", verbose = True)
+for feature, label in imagenesEntrenamiento:
+
+    elementosEntrenamiento.append(feature)
+    etiquetasEntrenamiento.append(label)
+
+elementosEvaluar = []
+etiquetasEvaluar = []
+
+for feature, label in imagenesEvaluar:
+    
+    elementosEvaluar.append(feature)
+    etiquetasEvaluar.append(label)
+
+# Son asignados los labels de entrenamineto y test.
+
+xTrain = elementosEntrenamiento
+yTrain = etiquetasEntrenamiento
+xTest = elementosEvaluar
+yTest = etiquetasEvaluar
+
+# Normalizar los datos
+scaler = StandardScaler()
+xTrain = scaler.fit_transform(xTrain)  # Ajusta y transforma los datos de entrenamiento
+xTest = scaler.transform(xTest)  # Solo transforma los datos de test
+
+# Es entrenado un modelo con un radial kernel que interactua como weight nearest neighbor 
+
+model = SVC(C = 1, kernel = "linear", gamma = "scale", verbose = True)
 model.fit(xTrain, yTrain)
 
-prediciones = model.predict(xTest)
-acurrancy = model.score(xTest, yTest)
+# Guardar Modelo
 
-pick = open("weedDetectionInWheat/SVM/SVM.sav", "rb")
+pick = open("weedDetectionInWheat/SVM/SVMlinear.sav", "wb")
+pickle.dump(model, pick)
+pick.close()
+
+# Cargar Modelo
+
+pick = open("weedDetectionInWheat/SVM/SVMlinear.sav", "rb")
 model = pickle.load(pick)
 pick.close()
 
-print("Acurrancy: ", acurrancy)
+prediciones = model.predict(xTest)
+accurancy = model.score(xTest, yTest)
+
+print("Accuracy Lineal: ", accurancy)
+
+# Es entrenado un modelo con un kernel polynomial
+
+model = SVC(C = 1, kernel = "poly", gamma = "scale", verbose = True)
+model.fit(xTrain, yTrain)
+
+# Guardar Modelo
+
+pick = open("weedDetectionInWheat/SVM/SVMpolynomial.sav", "wb")
+pickle.dump(model, pick)
+pick.close()
+
+# Cargar Modelo
+
+pick = open("weedDetectionInWheat/SVM/SVMpolynomial.sav", "rb")
+model = pickle.load(pick)
+pick.close()
+
+prediciones = model.predict(xTest)
+accurancy = model.score(xTest, yTest)
+
+print("Accuracy Polynomial: ", accurancy)
+
+# Es entrenado un modelo con un radial kernel que interactua como weight nearest neighbor 
+
+model = SVC(C = 1, kernel = "rbf", gamma = "scale", verbose = True)
+model.fit(xTrain, yTrain)
+
+# Guardar Modelo
+
+pick = open("weedDetectionInWheat/SVM/SVMrbf.sav", "wb")
+pickle.dump(model, pick)
+pick.close()
+
+# Cargar Modelo
+
+pick = open("weedDetectionInWheat/SVM/SVMrbf.sav", "rb")
+model = pickle.load(pick)
+pick.close()
+
+prediciones = model.predict(xTest)
+accurancy = model.score(xTest, yTest)
+
+print("Accuracy Radial: ", accurancy)

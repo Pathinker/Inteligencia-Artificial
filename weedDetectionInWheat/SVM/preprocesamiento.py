@@ -55,13 +55,14 @@ for folder in categorias:
         imagenEntrenamiento = cv2.resize(imagenEntrenamiento,(227, 227))
         imagen = np.array(imagenEntrenamiento).flatten()
 
-        dataEntrenamiento.append([imagen, etiquetas])
-
+        dataEvaluar.append([imagen, etiquetas])
 
 # Transformar en una archivo load para ser usado por el modelo SVM.
 
-imagenes = dataEntrenamiento + dataEvaluar
+pickIn = open("weedDetectionInWheat/SVM/dataEntrenamiento.pickle", "wb")
+pickle.dump(dataEntrenamiento, pickIn)
+pickIn.close()
 
-pickIn = open("weedDetectionInWheat/SVM/data.pickle", "wb")
-pickle.dump(imagenes, pickIn)
+pickIn = open("weedDetectionInWheat/SVM/dataEvaluar.pickle", "wb")
+pickle.dump(dataEvaluar, pickIn)
 pickIn.close()
