@@ -41,37 +41,40 @@ validacionDataFrame = tf.keras.utils.image_dataset_from_directory(
 
 )
 
-# Aplanar y normalizar imágenes para el SVM
-
+# Transformar el conjunto de datos a la forma (32, 154587)
 imagenesValidacion = []
-etiquetasValidacion = []
 
 for batch in validacionDataFrame:
-    
+
     images, labels = batch  # Separar imágenes y etiquetas
+    # Aplanar cada imagen a una dimensión
+
     images_reshaped = tf.reshape(images, (images.shape[0], anchoImagen * largoImagen * canales))
     imagenesValidacion.append(images_reshaped.numpy())  # Convertir a numpy array y guardar
-    etiquetasValidacion.append(labels.numpy())  # Guardar etiquetas
 
-imagenesValidacion = np.concatenate(imagenesValidacion)
-etiquetasValidacion = np.concatenate(etiquetasValidacion)
-
-# Normalizar las imágenes para SVM
 scaler = StandardScaler()
 elementosEvaluarNormalizacion = scaler.fit_transform(imagenesValidacion)
 
 # Predicción con el modelo CNN
-prediccionesCNN = alexnet.predict(validacionDataFrame)  # Probabilidades de la CNN
+prediccionesCNN = alexnet.predict(validacionDataFrame)
+prediccionesCNNClasificadas = np.where(prediccionesCNN > 0.5, 1, 0)
 
-# Predicción con el modelo SVM (probabilidades)
-prediccionesSVM = SVM.predict_proba(elementosEvaluarNormalizacion)[:, 1]  # Probabilidad de clase 1
+# Predicción con el modelo SVM
+prediccionesSVM = SVM.predict(elementosEvaluarNormalizacion)
 
-# Soft Voting (promedio de probabilidades)
-prediccionesCombinadas = (prediccionesCNN.flatten() + prediccionesSVM) / 2  # Promedio de las probabilidades
+# Unir las predicciones
+prediccionFinal = []
 
-# Clasificar basado en el promedio de las probabilidades (umbral 0.5)
-prediccionesFinales = np.where(prediccionesCombinadas > 0.5, 1, 0)
+for claseCNN, claseSVM in tqdm(zip(prediccionesCNNClasificadas, prediccionesSVM), total=len(prediccionesCNNClasificadas)):
+    # Usar votación por mayoría
+    if claseCNN == claseSVM:
+        prediccionFinal.append(claseCNN)
+    else:
+        # Si hay un empate, puedes elegir una estrategia para romper el empate.
+        # Aquí se escoge el SVM como desempate, pero puedes elegir otra estrategia.
+        prediccionFinal.append(claseSVM)
 
-# Evaluar la precisión comparando con las etiquetas reales
-precision = np.mean(prediccionesFinales == etiquetasValidacion)
-print(f"Precisión del Voting Classifier (Soft Voting): {precision:.2f}")
+prediccionesFinales = np.array(prediccionFinal)
+
+precision = np.mean(prediccionesFinales == np.array(imagenesValidacion))
+print(f"Precisión del Voting Classifier: {precision:.2f}")
