@@ -46,6 +46,9 @@ yTrain = etiquetasEntrenamiento
 xTest = elementosEvaluar
 yTest = etiquetasEvaluar
 
+print(set(yTrain))
+
+
 modelSVM = Pipeline([
 
     ("scaler", StandardScaler()),
@@ -59,13 +62,13 @@ modelSVM.fit(xTrain, yTrain)
 
 # Guardar Modelo
 
-pick = open("weedDetectionInWheat/SVM/SVMBatchesVoting.sav", "wb")
+pick = open("weedDetectionInWheat/SVM/SVMVoting.sav", "wb")
 pickle.dump(modelSVM, pick)
 pick.close()
 
 # Cargar Modelo
 
-pick = open("weedDetectionInWheat/SVM/SVMBatchesVoting.sav", "rb")
+pick = open("weedDetectionInWheat/SVM/SVMVoting.sav", "rb")
 model = pickle.load(pick)
 pick.close()
 

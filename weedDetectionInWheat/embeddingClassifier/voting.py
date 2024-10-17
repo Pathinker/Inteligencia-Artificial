@@ -13,7 +13,7 @@ alexnet = load_model("weedDetectionInWheat/CNN/alexnet.keras")
 
 # Cargar SVM Kernel Radial (Mejor Performance)
 
-pickIn = open("weedDetectionInWheat/SVM/SVMrbf.sav", "rb")
+pickIn = open("weedDetectionInWheat/SVM/SVMrbfr.sav", "rb")
 SVM = pickle.load(pickIn)
 pickIn.close()
 
@@ -43,6 +43,7 @@ validacionDataFrame = tf.keras.utils.image_dataset_from_directory(
 
 # Transformar el conjunto de datos a la forma (32, 154587)
 imagenesValidacion = []
+etiquetasValidacion = []
 
 for batch in validacionDataFrame:
 
@@ -51,30 +52,32 @@ for batch in validacionDataFrame:
 
     images_reshaped = tf.reshape(images, (images.shape[0], anchoImagen * largoImagen * canales))
     imagenesValidacion.append(images_reshaped.numpy())  # Convertir a numpy array y guardar
+    etiquetasValidacion.append(labels.numpy())
 
-scaler = StandardScaler()
-elementosEvaluarNormalizacion = scaler.fit_transform(imagenesValidacion)
+imagenesValidacion = np.vstack(imagenesValidacion)
+etiquetasValidacion = np.concatenate(etiquetasValidacion)
 
-# Predicción con el modelo CNN
-prediccionesCNN = alexnet.predict(validacionDataFrame)
-prediccionesCNNClasificadas = np.where(prediccionesCNN > 0.5, 1, 0)
+# Predicción con el modelo CNN (obtener probabilidades en lugar de clases)
+probabilidadesCNN = alexnet.predict(validacionDataFrame)
+#print(probabilidadesCNN)
 
 # Predicción con el modelo SVM
-prediccionesSVM = SVM.predict(elementosEvaluarNormalizacion)
+probabilidadesSVM = SVM.decision_function(imagenesValidacion)
+#print(probabilidadesSVM)
 
 # Unir las predicciones
 prediccionFinal = []
 
-for claseCNN, claseSVM in tqdm(zip(prediccionesCNNClasificadas, prediccionesSVM), total=len(prediccionesCNNClasificadas)):
-    # Usar votación por mayoría
-    if claseCNN == claseSVM:
-        prediccionFinal.append(claseCNN)
-    else:
-        # Si hay un empate, puedes elegir una estrategia para romper el empate.
-        # Aquí se escoge el SVM como desempate, pero puedes elegir otra estrategia.
-        prediccionFinal.append(claseSVM)
+for probCNN, probSVM in tqdm(zip(probabilidadesCNN.flatten(), probabilidadesSVM.flatten()), total=len(probabilidadesCNN)):
+    
+    # Promediar las probabilidades
+    soft_vote = (probCNN + probSVM) / 2
+    
+    # Convertir las probabilidades a una clase final (0 o 1)
+    claseFinal = 1 if soft_vote > 0.5 else 0
+    prediccionFinal.append(claseFinal)
 
 prediccionesFinales = np.array(prediccionFinal)
 
-precision = np.mean(prediccionesFinales == np.array(imagenesValidacion))
-print(f"Precisión del Voting Classifier: {precision:.2f}")
+precision = np.mean(prediccionesFinales == etiquetasValidacion.flatten())
+print(f"Precisión del Voting Classifier: {precision}")
