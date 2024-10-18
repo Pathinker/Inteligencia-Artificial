@@ -5,7 +5,34 @@ from tqdm import tqdm
 from tensorflow import keras
 from pathlib import Path
 from tensorflow.keras.models import load_model # type: ignore
-from sklearn.preprocessing import StandardScaler # type: ignore
+
+def predicciones(SVM, Modelo):
+
+    # Predicción con el modelo SVM
+    probabilidadesSVM = SVM.decision_function(imagenesValidacion)
+
+    # Unir las predicciones
+    prediccionFinal = []
+
+    for probCNN, probSVM in tqdm(zip(probabilidadesCNN.flatten(), probabilidadesSVM.flatten()), total=len(probabilidadesCNN)):
+        
+        # Promediar las probabilidades para el sofvoting
+
+        softVoting = (probCNN + probSVM) / 2
+        prediccion = 0
+        
+        # Convertir las probabilidades a una clase final (0 o 1)
+
+        if(softVoting > 0.5):
+            prediccion = 1
+
+        prediccionFinal.append(prediccion)
+
+    prediccionesFinales = np.array(prediccionFinal)
+
+    precision = np.mean(prediccionesFinales == etiquetasValidacion.flatten())
+    print(f"Precisión del Voting Classifier SVM {Modelo}: {precision}")
+
 
 # Cargar el modelo convolucional
 
@@ -13,8 +40,20 @@ alexnet = load_model("weedDetectionInWheat/CNN/alexnet.keras")
 
 # Cargar SVM Kernel Radial (Mejor Performance)
 
-pickIn = open("weedDetectionInWheat/SVM/SVMrbfr.sav", "rb")
-SVM = pickle.load(pickIn)
+pickIn = open("weedDetectionInWheat/SVM/SVMlinear.sav", "rb")
+SVMLineal = pickle.load(pickIn)
+pickIn.close()
+
+pickIn = open("weedDetectionInWheat/SVM/SVMpolynomial.sav", "rb")
+SVMPolynomial = pickle.load(pickIn)
+pickIn.close()
+
+pickIn = open("weedDetectionInWheat/SVM/SVMrbf.sav", "rb")
+SVMRadial = pickle.load(pickIn)
+pickIn.close()
+
+pickIn = open("weedDetectionInWheat/SVM/SVMVotingBatches.sav", "rb")
+SVMRadialBatches = pickle.load(pickIn)
 pickIn.close()
 
 # Cargar datos predicción
@@ -42,42 +81,31 @@ validacionDataFrame = tf.keras.utils.image_dataset_from_directory(
 )
 
 # Transformar el conjunto de datos a la forma (32, 154587)
+
 imagenesValidacion = []
 etiquetasValidacion = []
 
 for batch in validacionDataFrame:
 
-    images, labels = batch  # Separar imágenes y etiquetas
-    # Aplanar cada imagen a una dimensión
+    # Separar el label y la imagen de cada batch
 
-    images_reshaped = tf.reshape(images, (images.shape[0], anchoImagen * largoImagen * canales))
-    imagenesValidacion.append(images_reshaped.numpy())  # Convertir a numpy array y guardar
+    images, labels = batch 
+
+    # Transformar al formato de entrada del SVM
+
+    imagenesReshaped = tf.reshape(images, (images.shape[0], anchoImagen * largoImagen * canales))
+    imagenesValidacion.append(imagenesReshaped.numpy())
     etiquetasValidacion.append(labels.numpy())
+
+# Agrupar las imagenes y etiquetas   
 
 imagenesValidacion = np.vstack(imagenesValidacion)
 etiquetasValidacion = np.concatenate(etiquetasValidacion)
 
 # Predicción con el modelo CNN (obtener probabilidades en lugar de clases)
 probabilidadesCNN = alexnet.predict(validacionDataFrame)
-#print(probabilidadesCNN)
 
-# Predicción con el modelo SVM
-probabilidadesSVM = SVM.decision_function(imagenesValidacion)
-#print(probabilidadesSVM)
-
-# Unir las predicciones
-prediccionFinal = []
-
-for probCNN, probSVM in tqdm(zip(probabilidadesCNN.flatten(), probabilidadesSVM.flatten()), total=len(probabilidadesCNN)):
-    
-    # Promediar las probabilidades
-    soft_vote = (probCNN + probSVM) / 2
-    
-    # Convertir las probabilidades a una clase final (0 o 1)
-    claseFinal = 1 if soft_vote > 0.5 else 0
-    prediccionFinal.append(claseFinal)
-
-prediccionesFinales = np.array(prediccionFinal)
-
-precision = np.mean(prediccionesFinales == etiquetasValidacion.flatten())
-print(f"Precisión del Voting Classifier: {precision}")
+predicciones(SVMLineal, "Lineal")
+predicciones(SVMPolynomial, "Polinomial")
+predicciones(SVMRadial, "Radial")
+predicciones(SVMRadialBatches, "Radial Batches")

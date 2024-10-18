@@ -47,7 +47,7 @@ yTrain = etiquetasEntrenamiento
 xTest = elementosEvaluar
 yTest = etiquetasEvaluar
 
-batchSize = 32
+batchSize = 64
 
 modelSVM = Pipeline([
 
@@ -76,16 +76,15 @@ for batchX, batchY in tqdm(batch_data(xTrain, yTrain, batchSize), total = numero
 
     modelSVM.fit(batchX, batchY)
 
-
 # Guardar Modelo
 
-pick = open("weedDetectionInWheat/SVM/SVMBatchesVoting.sav", "wb")
+pick = open("weedDetectionInWheat/SVM/SVMVotingBatches.sav", "wb")
 pickle.dump(modelSVM, pick)
 pick.close()
 
 # Cargar Modelo
 
-pick = open("weedDetectionInWheat/SVM/SVMBatchesVoting.sav", "rb")
+pick = open("weedDetectionInWheat/SVM/SVMVotingBatches.sav", "rb")
 model = pickle.load(pick)
 pick.close()
 

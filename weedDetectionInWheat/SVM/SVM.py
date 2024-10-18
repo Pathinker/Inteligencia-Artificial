@@ -5,6 +5,7 @@ import pickle
 
 from sklearn.svm import SVC # type: ignore
 from sklearn.preprocessing import StandardScaler # type: ignore
+from sklearn.pipeline import Pipeline # type: ignore
 
 # Cargar imagenes entrenamiento desde el archivo pickle
 
@@ -45,14 +46,15 @@ yTrain = etiquetasEntrenamiento
 xTest = elementosEvaluar
 yTest = etiquetasEvaluar
 
-# Normalizar los datos
-scaler = StandardScaler()
-xTrain = scaler.fit_transform(xTrain)  # Ajusta y transforma los datos de entrenamiento
-xTest = scaler.transform(xTest)  # Solo transforma los datos de test
+# Kernel lineal
 
-# Es entrenado un modelo con un radial kernel que interactua como weight nearest neighbor 
+model = Pipeline([
 
-model = SVC(C = 1, kernel = "linear", gamma = "scale", verbose = True)
+    ("scaler", StandardScaler()),
+    ("svm", SVC(C = 1, kernel = "linear", gamma = "scale", verbose = True))
+
+])
+
 model.fit(xTrain, yTrain)
 
 # Guardar Modelo
@@ -74,7 +76,13 @@ print("Accuracy Lineal: ", accurancy)
 
 # Es entrenado un modelo con un kernel polynomial
 
-model = SVC(C = 1, kernel = "poly", gamma = "scale", verbose = True)
+model = Pipeline([
+
+    ("scaler", StandardScaler()),
+    ("svm", SVC(C = 1, kernel = "poly", gamma = "scale", verbose = True))
+
+])
+
 model.fit(xTrain, yTrain)
 
 # Guardar Modelo
@@ -96,7 +104,13 @@ print("Accuracy Polynomial: ", accurancy)
 
 # Es entrenado un modelo con un radial kernel que interactua como weight nearest neighbor 
 
-model = SVC(C = 1, kernel = "rbf", gamma = "scale", verbose = True)
+model = Pipeline([
+
+    ("scaler", StandardScaler()),
+    ("svm", SVC(C = 1, kernel = "rbf", gamma = "scale", verbose = True))
+
+])
+
 model.fit(xTrain, yTrain)
 
 # Guardar Modelo
