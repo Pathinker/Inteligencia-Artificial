@@ -13,14 +13,9 @@ class ADSCFGWO:
 
         # Inicializamos las posiciones de los lobos en función de la estructura de los pesos del modelo
 
-        self.positions = []
+        self.positions = self.asignarPosicion()
 
-        for i in range(self.numeroAgentes):
-
-            position = self.asignarPosicion()
-            self.positions.append(position)
-
-    def asignarPosicion(self):
+    def asignarPosicion(self): # Generar una matriz con todos los pesos a optimizar de la red.
 
         pocisionRandom = []
 
@@ -40,8 +35,8 @@ class ADSCFGWO:
     def optimize(self, datasetEntrenamiento, datasetEvaluacion):
 
         # Inicializar alpha, beta y delta (los mejores lobos)
-        posicionAlfa, posicionBeta, posicionDelta = None, None, None
-        resultadoAlfa, resultadoBeta, resultadoDelta = np.inf, np.inf, np.inf
+        posicionAlfa, posicionBeta, posicionDelta = self.positions, self.positions, self.positions
+        lossAlfa, lossBeta, lossDelta = np.inf, np.inf, np.inf
 
         for iteracion in range(self.iterMaximo):
 
@@ -56,69 +51,80 @@ class ADSCFGWO:
             A = 2 * a * r1 - a
             C = 2 * r2
 
-            for i in range(self.numeroAgentes):
+            # Asignar los pesos del lobo actual al modelo
+            self.setWeights(self.positions)
 
-                # Asignar los pesos del lobo actual al modelo
-                self.setWeights(self.positions[i])
+            # Evaluar la pérdida en los datos de entrenamiento
+            loss, _ = self.model.evaluate(datasetEntrenamiento, verbose = 1)
 
-                # Evaluar la pérdida en los datos de entrenamiento
-                loss, _ = self.model.evaluate(datasetEntrenamiento, verbose = 1)
+            # Evaluar la pérdida en los datos de evaluación
 
-                # Evaluar la pérdida en los datos de evaluación
+            loss_eval = self.model.evaluate(datasetEvaluacion, verbose=1)
 
-                loss_eval = self.model.evaluate(datasetEvaluacion, verbose=1)
+            # Actualizar alpha, beta y delta al detectar un agente menor equivalente a una menor perdida
 
-                # Actualizar alpha, beta y delta
-                if loss < resultadoAlfa:
-                    resultadoAlfa, posicionAlfa = loss, self.positions[i]
-                elif loss < resultadoBeta:
-                    resultadoBeta, posicionBeta = loss, self.positions[i]
-                elif loss < resultadoDelta:
-                    resultadoDelta, posicionDelta = loss, self.positions[i]
+            if loss < lossAlfa:
 
-                # Normalizar las pérdidas
+                # Actualizar Alpha y mover los otros lobos hacia abajo
+                lossDelta, posicionDelta = lossBeta, posicionBeta
+                lossBeta, posicionBeta = lossAlfa, posicionAlfa
+                lossAlfa, posicionAlfa = loss, self.positions
 
-                perdidaTotal = resultadoAlfa + resultadoBeta + resultadoDelta
+            elif loss < lossBeta:
 
-                if perdidaTotal > 0:  
+                # Actualizar Beta y mover Delta hacia abajo
+                lossDelta, posicionDelta = lossBeta, posicionBeta
+                lossBeta, posicionBeta = loss, self.positions
 
-                    resultadoAlfa /= perdidaTotal
-                    resultadoBeta /= perdidaTotal
-                    resultadoDelta /= perdidaTotal                    
+            elif loss < lossDelta:
+                    
+                # Actualizar solo Delta
+                lossDelta, posicionDelta = loss, self.positions
+
+            # Normalizar las pérdidas
+
+            perdidaTotal = lossAlfa + lossBeta + lossDelta
+
+            if perdidaTotal > 0:  
+
+                lossAlfa /= perdidaTotal
+                lossBeta /= perdidaTotal
+                lossDelta /= perdidaTotal                    
 
             # Actualizar las posiciones de los lobos
-            for i in range(self.numeroAgentes):
 
-                distanciaAlfa = None
-                distanciaBeta = None
-                distanciaDelta = None
+            distanciaAlfa = None
+            distanciaBeta = None
+            distanciaDelta = None
 
-                for j in range(len(self.weights_structure)):
+            for i in range(len(self.weights_structure)):
 
-                    # Calculo de la distancia del lobo a la presa.
+                # Calculo de la distancia del lobo a la presa.
 
-                    distanciaAlfa = np.abs(C * posicionAlfa[j] - self.positions[i][j])
-                    distanciaBeta = np.abs(C * posicionBeta[j] - self.positions[i][j])
-                    distanciaDelta = np.abs(C * posicionDelta[j] - self.positions[i][j]) 
+                # M = np.abs(C * (lossAlfa * distanciaAlfa, ))
 
-                    # Reposionamiento del lobo.
+                distanciaAlfa = np.abs(C * posicionAlfa[i] - self.positions[i])
+                distanciaBeta = np.abs(C * posicionBeta[i] - self.positions[i])
+                distanciaDelta = np.abs(C * posicionDelta[i] - self.positions[i]) 
 
-                    self.positions[i][j] = (
-                        (posicionAlfa[j] - A * distanciaAlfa +
-                        posicionBeta[j] - A * distanciaBeta +
-                        posicionDelta[j] - A *distanciaDelta) / 3
+                # Reposionamiento del lobo.
+
+                self.positions[i] = (
+                    (posicionAlfa[i] - A * distanciaAlfa +
+                    posicionBeta[i] - A * distanciaBeta +
+                    posicionDelta[i] - A *distanciaDelta) / 3
+                )
+
+                # Efectuar el algoritmo ASA 
+
+                if r4 < 0.5:
+                    self.positions[i] += (
+                    r1 * np.sin(r2) * np.abs(r3 * posicionAlfa[i] - self.positions[i])
                     )
-
-                    # Efectuar el algoritmo ASA 
-
-                    if r4 < 0.5:
-                        self.positions[i][j] += (
-                            r1 * np.sin(r2) * np.abs(r3 * posicionAlfa[j] - self.positions[i][j])
-                        )
-                    elif r4 >= 0.5:
-                        self.positions[i][j] += (
-                            r1 * np.cos(r2) * np.abs(r3 * posicionAlfa[j] - self.positions[i][j])
-                        )
+                elif r4 >= 0.5:
+                    self.positions[i] += (
+                    r1 * np.cos(r2) * np.abs(r3 * posicionAlfa[i] - self.positions[i])
+                    )
 
         # Devuelve los mejores pesos encontrados
         return posicionAlfa

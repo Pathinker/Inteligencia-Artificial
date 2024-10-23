@@ -77,7 +77,7 @@ arquitecturaCNN.compile(
 )
 
 # Inicializar GWO con la estructura de los pesos del modelo
-gwo = ADSCFGWO(numeroAgentes=10, model=arquitecturaCNN, iterMaximo=1)
+gwo = ADSCFGWO(numeroAgentes=1, model=arquitecturaCNN, iterMaximo=2)
 
 # Optimizar con GWO
 best_weights = gwo.optimize(dataArgumentationTrain, validacionDataFrame)
@@ -85,4 +85,4 @@ best_weights = gwo.optimize(dataArgumentationTrain, validacionDataFrame)
 # Establecer los mejores pesos encontrados al modelo
 
 arquitecturaCNN.set_weights(best_weights)
-arquitecturaCNN.save('weedDetectionInWheat/alexnetMetaheuristic.keras')
+arquitecturaCNN.save('weedDetectionInWheat/CNN/alexnetMetaheuristic.keras')
