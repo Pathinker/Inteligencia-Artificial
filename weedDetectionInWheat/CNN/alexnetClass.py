@@ -7,13 +7,16 @@ from sklearn.utils.class_weight import compute_class_weight # type: ignore
 
 class alexnet():
 
-    def __init__(self, datasetEntrenamiento, datasetValidacion, nombre = None, epochs = None):
+    def __init__(self, datasetEntrenamiento, datasetValidacion, nombre = None, epochs = None, train = None):
         
         self.alexnet = self.crearModelo()
         self.weights = self.balancerPesos(datasetEntrenamiento)
         self.dataArgumentation = self.generarDataArgumentation(datasetEntrenamiento)
-        self.fit(self.dataArgumentation, datasetValidacion, nombre, epochs)
-        self.datasetEntrenamiento = datasetEntrenamiento
+
+        if(train != None):
+
+            self.fit(self.dataArgumentation, datasetValidacion, nombre, epochs)
+            self.datasetEntrenamiento = datasetEntrenamiento
 
     def crearModelo(self):
 
