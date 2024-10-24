@@ -91,6 +91,10 @@ class alexnet():
         
         return self.alexnet
     
+    def obtenerPesosClases(self):
+        
+        return self.weights
+    
     def balancerPesos(self, datasetEntrenamiento):
 
         etiquetasDataset = np.concatenate([y for x, y in datasetEntrenamiento], axis = 0)

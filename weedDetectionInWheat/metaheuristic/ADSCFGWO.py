@@ -2,11 +2,11 @@ import numpy as np
 import tensorflow as tf
 
 class ADSCFGWO:
-    def __init__(self, numeroAgentes, model, iterMaximo=50):
+    def __init__(self, model, iterMaximo=50, classWeight = None):
 
-        self.numeroAgentes = numeroAgentes
         self.model = model
         self.iterMaximo = iterMaximo
+        self.classWeight = classWeight
 
         # Obtener los pesos iniciales del modelo
         self.weights_structure = model.get_weights()
@@ -31,12 +31,45 @@ class ADSCFGWO:
     def setWeights(self, weights):
 
         self.model.set_weights(weights)
+
+    def calcularFitness(self, loss, weights):
+        
+        # Calcula la función de fitness basada en la pérdida del modelo y el número de características seleccionadas.
+        
+        alfa = 0.99
+        beta = 0.01
+
+        # Fitness basado en la ecuación Hn = α * Error(P) + β * |S|/|A|
+        fitness = alfa * loss + beta * 1
+
+        return fitness
     
+    def calcularPerdida(self, parametro):
+
+        if(np.isinf(parametro)):
+            return 0
+        
+        return parametro
+    
+    def normalizarPerdida(self, parametro, total):
+
+        if(np.isinf(parametro)):
+            return parametro
+        
+        return parametro / total
+
     def optimize(self, datasetEntrenamiento, datasetEvaluacion):
 
         # Inicializar alpha, beta y delta (los mejores lobos)
         posicionAlfa, posicionBeta, posicionDelta = self.positions, self.positions, self.positions
-        lossAlfa, lossBeta, lossDelta = np.inf, np.inf, np.inf
+        lossAlfa, lossBeta, lossDelta =  np.inf, np.inf, np.inf
+
+        # Asignar los pesos del lobo actual al modelo
+        self.setWeights(self.positions)
+
+        # Evaluar la pérdida en los datos de entrenamiento
+        print("Pesos asignados aleatoriamente: ")
+        loss, _ = self.model.evaluate(datasetEntrenamiento, verbose = 1)
 
         for iteracion in range(self.iterMaximo):
 
@@ -51,35 +84,34 @@ class ADSCFGWO:
             A = 2 * a * r1 - a
             C = 2 * r2
 
-            # Asignar los pesos del lobo actual al modelo
-            self.setWeights(self.positions)
-
-            # Evaluar la pérdida en los datos de entrenamiento
-            loss, _ = self.model.evaluate(datasetEntrenamiento, verbose = 1)
-
-            # Evaluar la pérdida en los datos de evaluación
-
-            loss_eval = self.model.evaluate(datasetEvaluacion, verbose=1)
+            # Calcular fitness
+            fitness = self.calcularFitness(loss, self.positions)
 
             # Actualizar alpha, beta y delta al detectar un agente menor equivalente a una menor perdida
 
-            if loss < lossAlfa:
+            if iteracion == 0 :
+                
+                lossDelta, posicionDelta = fitness, self.positions.copy()
+                lossBeta, posicionBeta = fitness, self.positions.copy()
+                lossAlfa, posicionAlfa = fitness, self.positions.copy()
+
+            if fitness < lossAlfa:
 
                 # Actualizar Alpha y mover los otros lobos hacia abajo
                 lossDelta, posicionDelta = lossBeta, posicionBeta
                 lossBeta, posicionBeta = lossAlfa, posicionAlfa
-                lossAlfa, posicionAlfa = loss, self.positions
+                lossAlfa, posicionAlfa = fitness, self.positions.copy()
 
-            elif loss < lossBeta:
+            elif fitness < lossBeta:
 
                 # Actualizar Beta y mover Delta hacia abajo
                 lossDelta, posicionDelta = lossBeta, posicionBeta
-                lossBeta, posicionBeta = loss, self.positions
+                lossBeta, posicionBeta = fitness, self.positions.copy()
 
-            elif loss < lossDelta:
+            elif fitness < lossDelta:
                     
                 # Actualizar solo Delta
-                lossDelta, posicionDelta = loss, self.positions
+                lossDelta, posicionDelta = fitness, self.positions.copy()
 
             # Normalizar las pérdidas
 
@@ -89,7 +121,7 @@ class ADSCFGWO:
 
                 lossAlfa /= perdidaTotal
                 lossBeta /= perdidaTotal
-                lossDelta /= perdidaTotal                    
+                lossDelta /= perdidaTotal                 
 
             # Actualizar las posiciones de los lobos
 
@@ -101,30 +133,42 @@ class ADSCFGWO:
 
                 # Calculo de la distancia del lobo a la presa.
 
-                # M = np.abs(C * (lossAlfa * distanciaAlfa, ))
-
-                distanciaAlfa = np.abs(C * posicionAlfa[i] - self.positions[i])
-                distanciaBeta = np.abs(C * posicionBeta[i] - self.positions[i])
-                distanciaDelta = np.abs(C * posicionDelta[i] - self.positions[i]) 
+                M = np.abs(C * (lossAlfa * posicionAlfa[i] + lossBeta * posicionBeta[i] + lossDelta * posicionDelta[i]) - self.positions[i])
 
                 # Reposionamiento del lobo.
 
                 self.positions[i] = (
-                    (posicionAlfa[i] - A * distanciaAlfa +
-                    posicionBeta[i] - A * distanciaBeta +
-                    posicionDelta[i] - A *distanciaDelta) / 3
+                    (posicionAlfa[i] - A * M +
+                    posicionBeta[i] - A * M +
+                    posicionDelta[i] - A * M) / 3
                 )
 
                 # Efectuar el algoritmo ASA 
 
+                r1SCA = a - (a * iteracion / self.iterMaximo)
+
                 if r4 < 0.5:
                     self.positions[i] += (
-                    r1 * np.sin(r2) * np.abs(r3 * posicionAlfa[i] - self.positions[i])
+                    r1SCA * np.sin(r2) * np.abs(r3 * posicionAlfa[i] - self.positions[i])
                     )
                 elif r4 >= 0.5:
                     self.positions[i] += (
-                    r1 * np.cos(r2) * np.abs(r3 * posicionAlfa[i] - self.positions[i])
+                    r1SCA * np.cos(r2) * np.abs(r3 * posicionAlfa[i] - self.positions[i])
                     )
+            
+            # Asignar los pesos del lobo actual al modelo
+
+            self.setWeights(self.positions)
+
+            # Evaluar la pérdida en los datos de entrenamiento
+
+            print(f"Epoch {iteracion + 1} / {self.iterMaximo} Entrenamiento / Validación: ")
+
+            loss, _ = self.model.evaluate(datasetEntrenamiento, verbose = 1)
+
+            # Evaluar la pérdida en los datos de evaluación
+
+            self.model.evaluate(datasetEvaluacion, verbose=1)
 
         # Devuelve los mejores pesos encontrados
         return posicionAlfa

@@ -68,6 +68,7 @@ dataArgumentationTrain = trainDataFrame.map(procesarImagen)
 # Construir el modelo AlexNet
 CNN = alexnet(trainDataFrame, validacionDataFrame)
 arquitecturaCNN = CNN.obtenerModelo()
+pesosClases = CNN.obtenerPesosClases()
 
 # Compilar y entrenar el modelo
 arquitecturaCNN.compile(
@@ -77,7 +78,7 @@ arquitecturaCNN.compile(
 )
 
 # Inicializar GWO con la estructura de los pesos del modelo
-gwo = ADSCFGWO(numeroAgentes=1, model=arquitecturaCNN, iterMaximo=2)
+gwo = ADSCFGWO(model=arquitecturaCNN, iterMaximo=10, classWeight = pesosClases)
 
 # Optimizar con GWO
 best_weights = gwo.optimize(dataArgumentationTrain, validacionDataFrame)
