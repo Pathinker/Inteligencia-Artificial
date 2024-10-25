@@ -11,7 +11,8 @@ import matplotlib.pyplot as plt
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from weedDetectionInWheat.CNN.alexnetClass import alexnet
-from weedDetectionInWheat.metaheuristic.ADSCFGWO import ADSCFGWO
+#from weedDetectionInWheat.metaheuristic.ADSCFGWO import ADSCFGWO
+from weedDetectionInWheat.metaheuristic.ADSCFGWOclassWeight import ADSCFGWO
 
 # Cargar el set de datos
 direccionDataset = Path("weedDetectionInWheat/Dataset")
