@@ -13,26 +13,40 @@ class ADSCFGWO:
         self.classWeight = classWeight # Balanceo de clases
         self.coeficienteBusqueda = 0.0
 
+        self.weights_structure = model.get_weights()
+        self.cantidadPesos = self.obtenerCantidadPesos()
+
         # Variables GWO
 
         self.loss = []
+        self.lossAlfa = np.finfo(np.float32).max
+        self.lossBeta = np.finfo(np.float32).max
+        self.lossDelta =  np.finfo(np.float32).max
 
-        self.lossAlfa = np.inf
-        self.lossBeta = np.inf
-        self.lossDelta =  np.inf
+        self.positions = np.zeros((numeroAgentes, self.cantidadPesos))
+        self.posicionAlfa = np.zeros(self.cantidadPesos)
+        self.posicionBeta = np.zeros(self.cantidadPesos)
+        self.posicionDelta = np.zeros(self.cantidadPesos)
 
-        self.posicionAlfa = None
-        self.posicionBeta = None
-        self.posicionDelta = None
+        # Obtener los pesos iniciales del modelo con el objetivo de obtener su estructura
 
-        # Obtener los pesos iniciales del modelo
+        # Asignar una posición aleatoria a cada agente
+        for i in range(self.numeroAgentes):
 
-        self.weights_structure = model.get_weights()
+            self.positions[i] = self.asignarPosicion()
+        
+        self.setWeights(self.positions[0])
 
-        # Inicializamos las posiciones de los lobos en función de la estructura de los pesos del modelo
+    def obtenerCantidadPesos(self):
+        
+        pesosTotales = 0
 
-        self.positions = self.asignarPosicion()
-        self.setWeights(self.positions)
+        for w in self.weights_structure:
+
+            elementos = np.prod(w.shape)  # Producto de todas las dimensiones de la forma
+            pesosTotales += elementos
+
+        return pesosTotales
 
     def asignarPosicion(self): # Generar una matriz con todos los pesos a optimizar de la red.
 
@@ -43,13 +57,22 @@ class ADSCFGWO:
 
             # Generar una matriz de valores aleatorios con la misma forma que los pesos 'w'
             random_weights = np.random.uniform(-1, 1, w.shape)
-            pocisionRandom.append(random_weights)
+            pocisionRandom.append(random_weights.flatten())
 
-        return pocisionRandom
+        return np.concatenate(pocisionRandom)
     
     def setWeights(self, weights):
 
-        self.model.set_weights(weights)
+        new_weights = []
+        idx = 0
+        for w in self.weights_structure:
+            
+            shape = w.shape
+            size = np.prod(shape)
+            new_weights.append(np.array(weights[idx:idx + size]).reshape(w.shape)) # Asignar a la forma original
+            idx += size
+
+        self.model.set_weights(new_weights)
 
     def calcularPerdidaConPesos(self, dataset, classWeight):
 
@@ -126,18 +149,7 @@ class ADSCFGWO:
 
         # Evaluar la pérdida en los datos de entrenamiento
 
-        print("Pesos asignados aleatoriamente:")
-        
-        loss = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight)
-        fitness = self.calcularFitness(loss)
-
         for iteracion in range(self.iterMaximo):
-
-            if iteracion == 0 :
-                
-                self.lossDelta, self.posicionDelta = fitness, self.positions.copy()
-                self.lossBeta, self.posicionBeta = fitness, self.positions.copy()
-                self.lossAlfa, self.posicionAlfa = fitness, self.positions.copy()
 
             self.GWO(datasetEntrenamiento, datasetEvaluacion, iteracion, 0)
             self.GWO(datasetEntrenamiento, datasetEvaluacion, iteracion, 1)
@@ -147,9 +159,22 @@ class ADSCFGWO:
     
     def GWO(self, datasetEntrenamiento, datasetEvaluacion, iteracion, trigonometrica):
 
-        fitness = np.inf
-
         for n in range(self.numeroAgentes):
+
+            self.setWeights(self.positions[n])
+
+            # Evaluar la pérdida en los datos de entrenamiento
+
+            print(f"Epoch {iteracion + 1} / {self.iterMaximo} (Poblacion {trigonometrica + 1}, Agente {n + 1} / {self.numeroAgentes})| Entrenamiento | Validación: ")
+
+            loss = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight)
+            self.loss.append(loss)
+
+            fitness = self.calcularFitness(loss)
+
+            # Evaluar la pérdida en los datos de evaluación
+
+            self.model.evaluate(datasetEvaluacion, verbose=1)    
 
             if(self.busquedaDinamica(self.loss, 3)):
 
@@ -176,76 +201,64 @@ class ADSCFGWO:
             if fitness < self.lossAlfa:
 
                 # Actualizar Alpha y mover los otros lobos hacia abajo
-                self.lossDelta, self.posicionDelta = self.lossBeta, self.posicionBeta.copy()
-                self.lossBeta, self.posicionBeta = self.lossAlfa, self.posicionAlfa.copy()
-                self.lossAlfa, self.posicionAlfa = fitness, self.positions.copy()
+                self.lossDelta, self.posicionDelta = self.lossBeta, np.ravel(self.posicionBeta.copy())
+                self.lossBeta, self.posicionBeta = self.lossAlfa, np.ravel(self.posicionAlfa.copy())
+                self.lossAlfa, self.posicionAlfa = fitness, np.ravel(self.positions[n, :].copy())
 
             elif fitness < self.lossBeta:
 
                 # Actualizar Beta y mover Delta hacia abajo
-                self.lossDelta, self.posicionDelta = self.lossBeta, self.posicionBeta.copy()
-                self.lossBeta, self.posicionBeta = fitness, self.positions.copy()
+                self.lossDelta, self.posicionDelta = self.lossBeta, np.ravel(self.posicionBeta.copy())
+                self.lossBeta, self.posicionBeta = fitness, np.ravel(self.positions[n, :].copy())
 
             elif fitness < self.lossDelta:
                     
                 # Actualizar solo Delta
-                self.lossDelta, self.posicionDelta = fitness, self.positions.copy()
+                self.lossDelta, self.posicionDelta = fitness, np.ravel(self.positions[n, :].copy())
 
             # Normalizar las pérdidas
 
-            perdidaTotal = self.lossAlfa + self.lossBeta + self.lossDelta
+            # perdidaTotal = self.lossAlfa + self.lossBeta + self.lossDelta
 
-            if perdidaTotal > 0:  
+            #if perdidaTotal > 0:  
 
-                self.lossAlfa /= perdidaTotal
-                self.lossBeta /= perdidaTotal
-                self.lossDelta /= perdidaTotal       
-
+                #self.lossAlfa /= perdidaTotal
+                #self.lossBeta /= perdidaTotal
+                #self.lossDelta /= perdidaTotal
+            
             # Actualizar las posiciones de los lobos     
 
-            for i in range(len(self.weights_structure)):
+            for i in tqdm(range(len(self.positions[n])), desc=f"Ajustando pesos", unit="peso"):
 
                 # Calculo de la distancia del lobo a la presa.
 
-                M = np.abs(C * (self.lossAlfa * self.posicionAlfa[i] + 
-                                self.lossBeta * self.posicionBeta[i] + 
-                                self.lossDelta * self.posicionDelta[i]) - self.positions[i])
-                
+                posicionAlfa = self.posicionAlfa[i]
+                posicionBeta = self.posicionBeta[i]
+                posicionDelta = self.posicionDelta[i]
+                positions = self.positions[n][i]
+
+                M = np.abs(C * (self.lossAlfa * posicionAlfa + 
+                                self.lossBeta * posicionBeta + 
+                                self.lossDelta * posicionDelta) - positions)
+                                
                 V1 = self.posicionAlfa[i] - A * M
                 V2 = self.posicionBeta[i] - A * M 
                 V3 = self.posicionDelta[i] - A * M
 
                 # Reposionamiento del lobo.
 
-                self.positions[i] = ((V1 + V2 + V3)/3)
+                self.positions[n][i] = (V1 + V2 + V3) / 3
 
                 # Efectuar el algoritmo ASA 
 
                 if (trigonometrica == 0 and r4 < 0.5):
 
-                    self.positions[i] += (
-                    r1SCA * np.sin(r2) * np.abs(r3 * self.posicionAlfa[i] - self.positions[i])
+                    self.positions[n][i] += (
+                    r1SCA * np.sin(r2) * np.abs(r3 * self.posicionAlfa[i] - self.positions[n][i])
                     )
 
                 elif (trigonometrica == 1 and r4 >= 0.5):
 
-                    self.positions[i] += (
-                    r1SCA * np.cos(r2) * np.abs(r3 * self.posicionAlfa[i] - self.positions[i])
+                    self.positions[n][i] += (
+                    r1SCA * np.cos(r2) * np.abs(r3 * self.posicionAlfa[i] - self.positions[n][i])
                     )
-            
-            # Asignar los pesos del lobo actual al modelo
-
-            self.setWeights(self.positions)
-
-            # Evaluar la pérdida en los datos de entrenamiento
-
-            print(f"Epoch {iteracion + 1} / {self.iterMaximo} (Poblacion {trigonometrica + 1}, Agente {n + 1} / {self.numeroAgentes})| Entrenamiento | Validación: ")
-
-            loss = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight)
-            self.loss.append(loss)
-
-            fitness = self.calcularFitness(loss)
-
-            # Evaluar la pérdida en los datos de evaluación
-
-            self.model.evaluate(datasetEvaluacion, verbose=1)    
