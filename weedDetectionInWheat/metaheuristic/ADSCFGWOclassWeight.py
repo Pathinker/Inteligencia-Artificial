@@ -167,10 +167,10 @@ class ADSCFGWO:
 
             print(f"Epoch {iteracion + 1} / {self.iterMaximo} (Poblacion {trigonometrica + 1}, Agente {n + 1} / {self.numeroAgentes})| Entrenamiento | Validación: ")
 
-            loss = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight)
-            self.loss.append(loss)
+            fitness = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight)
+            # self.loss.append(loss)
 
-            fitness = self.calcularFitness(loss)
+            # fitness = self.calcularFitness(loss)
 
             # Evaluar la pérdida en los datos de evaluación
 
