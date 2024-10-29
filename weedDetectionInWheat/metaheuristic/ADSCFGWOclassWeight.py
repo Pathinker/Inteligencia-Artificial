@@ -7,8 +7,8 @@ class ADSCFGWO:
 
         # Hiperparametros del constructor
 
-        self.model = model # Modelo usado de la red.
-        self.iterMaximo = iterMaximo # Iteraciones máximas a realizar.
+        self.model = model
+        self.iterMaximo = iterMaximo
         self.numeroAgentes = numeroAgentes # Número de población, soluciones a buscar en cada iteración.
         self.classWeight = classWeight # Balanceo de clases
         self.coeficienteBusqueda = 0.0
@@ -30,7 +30,6 @@ class ADSCFGWO:
 
         # Obtener los pesos iniciales del modelo con el objetivo de obtener su estructura
 
-        # Asignar una posición aleatoria a cada agente
         for i in range(self.numeroAgentes):
 
             self.positions[i] = self.asignarPosicion()
@@ -94,7 +93,7 @@ class ADSCFGWO:
                 
                 for i in range(len(etiqueta)): 
                     label = etiqueta[i]
-                    weights[i] = classWeight[label]         
+                    weights[i] = classWeight[label]    
 
                 lossBatch *=  weights
             
@@ -107,7 +106,7 @@ class ADSCFGWO:
         accuracy = prediccionesCorrectas / total
         print(f"Precisión: {accuracy} Pérdida: {loss / total}")
 
-        return loss / total  # Retornar la pérdida promedio    
+        return loss / total  
 
     def calcularFitness(self, loss):
         
@@ -143,34 +142,35 @@ class ADSCFGWO:
          
     def optimize(self, datasetEntrenamiento, datasetEvaluacion):
 
-        # Inicializar alpha, beta y delta (los mejores lobos)
+        print("Ajustar Parametros Aleatorios: ")
 
-        self.posicionAlfa, self.posicionBeta, self.posicionDelta = self.positions, self.positions, self.positions
+        loss = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight)
+        self.loss.append(loss)
+        fitness = self.calcularFitness(loss)
 
-        # Evaluar la pérdida en los datos de entrenamiento
+        self.lossAlfa, self.posicionAlfa = fitness, np.ravel(self.positions[0, :].copy())
+        self.lossBeta, self.posicionBeta = fitness, np.ravel(self.positions[0, :].copy())
+        self.lossDelta, self.posicionDelta = fitness, np.ravel(self.positions[0, :].copy())
 
         for iteracion in range(self.iterMaximo):
 
             self.GWO(datasetEntrenamiento, datasetEvaluacion, iteracion, 0)
             self.GWO(datasetEntrenamiento, datasetEvaluacion, iteracion, 1)
 
-        # Devuelve los mejores pesos encontrados
         return self.posicionAlfa
     
     def GWO(self, datasetEntrenamiento, datasetEvaluacion, iteracion, trigonometrica):
 
         for n in range(self.numeroAgentes):
 
-            self.setWeights(self.positions[n])
-
             # Evaluar la pérdida en los datos de entrenamiento
 
             print(f"Epoch {iteracion + 1} / {self.iterMaximo} (Poblacion {trigonometrica + 1}, Agente {n + 1} / {self.numeroAgentes})| Entrenamiento | Validación: ")
 
-            fitness = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight)
-            # self.loss.append(loss)
+            loss = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight)
+            self.loss.append(loss)
 
-            # fitness = self.calcularFitness(loss)
+            fitness = self.calcularFitness(loss)
 
             # Evaluar la pérdida en los datos de evaluación
 
@@ -198,23 +198,40 @@ class ADSCFGWO:
 
             # Actualizar alpha, beta y delta al detectar un agente menor equivalente a una menor perdida
 
+            print("Error: ", fitness)
+
             if fitness < self.lossAlfa:
 
+                print("Actualización Alfa: ", self.lossAlfa)
+                print("Posiciones Alfa: ", self.posicionAlfa)
+
                 # Actualizar Alpha y mover los otros lobos hacia abajo
+                
                 self.lossDelta, self.posicionDelta = self.lossBeta, np.ravel(self.posicionBeta.copy())
                 self.lossBeta, self.posicionBeta = self.lossAlfa, np.ravel(self.posicionAlfa.copy())
                 self.lossAlfa, self.posicionAlfa = fitness, np.ravel(self.positions[n, :].copy())
 
             elif fitness < self.lossBeta:
 
-                # Actualizar Beta y mover Delta hacia abajo
+                print("Actualización Beta: ", self.lossBeta)
+                print("Posiciones Beta: ", self.posicionBeta)
+
                 self.lossDelta, self.posicionDelta = self.lossBeta, np.ravel(self.posicionBeta.copy())
                 self.lossBeta, self.posicionBeta = fitness, np.ravel(self.positions[n, :].copy())
 
             elif fitness < self.lossDelta:
+
+                print("Actualización Delta: ", self.lossDelta)
+                print("Posiciones Delta: ", self)
                     
-                # Actualizar solo Delta
                 self.lossDelta, self.posicionDelta = fitness, np.ravel(self.positions[n, :].copy())
+
+            print("Perdida Alfa: ", self.lossAlfa)
+            print("Posiciones Alfa: ", self.posicionAlfa)
+            print("Perdida Beta: ", self.lossBeta)
+            print("Posiciones Beta: ", self.posicionBeta)
+            print("Perdida Delta: ", self.lossDelta)
+            print("Posiciones Delta: ", self.posicionDelta)
 
             # Normalizar las pérdidas
 
@@ -262,3 +279,5 @@ class ADSCFGWO:
                     self.positions[n][i] += (
                     r1SCA * np.cos(r2) * np.abs(r3 * self.posicionAlfa[i] - self.positions[n][i])
                     )
+
+            self.setWeights(self.positions[n])
