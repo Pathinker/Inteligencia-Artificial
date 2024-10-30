@@ -12,7 +12,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 
 from weedDetectionInWheat.CNN.alexnetClass import alexnet
 #from weedDetectionInWheat.metaheuristic.ADSCFGWO import ADSCFGWO
-from weedDetectionInWheat.metaheuristic.ADSCFGWOclassWeight import ADSCFGWO
+#from weedDetectionInWheat.metaheuristic.ADSCFGWOclassWeight import ADSCFGWO
+from weedDetectionInWheat.metaheuristic.GWO2 import ADSCFGWO
 
 # Cargar el set de datos
 direccionDataset = Path("weedDetectionInWheat/Dataset")
@@ -79,7 +80,7 @@ arquitecturaCNN.compile(
 )
 
 # Inicializar GWO con la estructura de los pesos del modelo
-gwo = ADSCFGWO(model=arquitecturaCNN, iterMaximo=10, classWeight = pesosClases)
+gwo = ADSCFGWO(model=arquitecturaCNN, iterMaximo=20, classWeight = pesosClases)
 
 # Optimizar con GWO
 best_weights = gwo.optimize(dataArgumentationTrain, validacionDataFrame)

@@ -142,59 +142,28 @@ class ADSCFGWO:
          
     def optimize(self, datasetEntrenamiento, datasetEvaluacion):
 
-        print("Ajustar Parametros Aleatorios: ")
-
-        loss = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight)
-        self.loss.append(loss)
-        fitness = self.calcularFitness(loss)
-
-        self.lossAlfa, self.posicionAlfa = fitness, np.ravel(self.positions[0, :].copy())
-        self.lossBeta, self.posicionBeta = fitness, np.ravel(self.positions[0, :].copy())
-        self.lossDelta, self.posicionDelta = fitness, np.ravel(self.positions[0, :].copy())
-
         for iteracion in range(self.iterMaximo):
 
-            self.GWO(datasetEntrenamiento, datasetEvaluacion, iteracion, "seno")
-            self.GWO(datasetEntrenamiento, datasetEvaluacion, iteracion, "coseno")
-
+            self.GWOExploracion(datasetEntrenamiento, datasetEvaluacion, iteracion)
+            self.GWOExplotacion(iteracion, "seno")
+            self.GWOExploracion(datasetEntrenamiento, datasetEvaluacion, iteracion)
+            self.GWOExplotacion(iteracion, "coseno")
+        
         return self.posicionAlfa
     
-    def GWO(self, datasetEntrenamiento, datasetEvaluacion, iteracion, trigonometrica):
+    def GWOExploracion(self, datasetEntrenamiento, datasetEvaluacion, iteracion):
 
         for n in range(self.numeroAgentes):
 
-            # Evaluar la pérdida en los datos de entrenamiento
-
-            print(f"Epoch {iteracion + 1} / {self.iterMaximo} (Poblacion {trigonometrica + 1}, Agente {n + 1} / {self.numeroAgentes})| Entrenamiento | Validación: ")
+            print(f"Exploración Epoch {iteracion + 1} / {self.iterMaximo} (Agente {n + 1} / {self.numeroAgentes})| Entrenamiento | Validación: ")
 
             loss = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight)
             self.loss.append(loss)
-
             fitness = self.calcularFitness(loss)
 
             # Evaluar la pérdida en los datos de evaluación
 
             self.model.evaluate(datasetEvaluacion, verbose=1)    
-
-            if(self.busquedaDinamica(self.loss, 3)):
-
-                self.coeficienteBusqueda *= 1.05
-
-                if(self.coeficienteBusqueda == 0.0):
-
-                    self.coeficienteBusqueda = 0.1
-
-            r1 =  self.coeficienteBusqueda + (np.random.random() * (1 -  self.coeficienteBusqueda))
-            r2 =  self.coeficienteBusqueda + (np.random.random() * (1 -  self.coeficienteBusqueda))
-            r3 =  self.coeficienteBusqueda + (np.random.random() * (1 -  self.coeficienteBusqueda))
-
-            r4 = np.random.random()
-            a = 2 - iteracion * (2/self.iterMaximo)
-
-            r1SCA = a - (a * iteracion / self.iterMaximo)
-
-            A = 2 * a * r1 - a
-            C = 2 * r2
 
             # Actualizar alpha, beta y delta al detectar un agente menor equivalente a una menor perdida
 
@@ -232,52 +201,63 @@ class ADSCFGWO:
             print("Posiciones Beta: ", self.posicionBeta)
             print("Perdida Delta: ", self.lossDelta)
             print("Posiciones Delta: ", self.posicionDelta)
-
-            # Normalizar las pérdidas
-
-            # perdidaTotal = self.lossAlfa + self.lossBeta + self.lossDelta
-
-            #if perdidaTotal > 0:  
-
-                #self.lossAlfa /= perdidaTotal
-                #self.lossBeta /= perdidaTotal
-                #self.lossDelta /= perdidaTotal
             
-            # Actualizar las posiciones de los lobos     
-
-            for i in tqdm(range(len(self.positions[n])), desc=f"Ajustando pesos", unit="peso"):
-
-                # Calculo de la distancia del lobo a la presa.
-
-                posicionAlfa = self.posicionAlfa[i]
-                posicionBeta = self.posicionBeta[i]
-                posicionDelta = self.posicionDelta[i]
-                positions = self.positions[n][i]
-
-                M = np.abs(C * (self.lossAlfa * posicionAlfa + 
-                                self.lossBeta * posicionBeta + 
-                                self.lossDelta * posicionDelta) - positions)
-                                
-                V1 = self.posicionAlfa[i] - A * M
-                V2 = self.posicionBeta[i] - A * M 
-                V3 = self.posicionDelta[i] - A * M
-
-                # Reposionamiento del lobo.
-
-                self.positions[n][i] = (V1 + V2 + V3) / 3
-
-                # Efectuar el algoritmo ASA 
-
-                if (trigonometrica == "seno" and r4 < 0.5):
-
-                    self.positions[n][i] += (
-                    r1SCA * np.sin(r2) * np.abs(r3 * self.posicionAlfa[i] - self.positions[n][i])
-                    )
-
-                elif (trigonometrica == "coseno" and r4 >= 0.5):
-
-                    self.positions[n][i] += (
-                    r1SCA * np.cos(r2) * np.abs(r3 * self.posicionAlfa[i] - self.positions[n][i])
-                    )
-
             self.setWeights(self.positions[n])
+
+    def GWOExplotacion(self, iteracion, trigonometrica):
+
+        a = 2 - iteracion * (2/self.iterMaximo)
+        r1SCA = a - (a * iteracion / self.iterMaximo)
+
+        for n in range(self.numeroAgentes):
+
+         for i in tqdm(range(len(self.positions[n])), desc=f"Ajustando pesos Epoch {iteracion + 1} / {self.iterMaximo} (Agente {n + 1} / {self.numeroAgentes})", unit="peso"):
+                
+            r1 =  self.coeficienteBusqueda + (np.random.random() * (1 -  self.coeficienteBusqueda))
+            A1 = 2 * a * r1 - a
+
+            r1 =  self.coeficienteBusqueda + (np.random.random() * (1 -  self.coeficienteBusqueda))
+            A2 = 2 * a * r1 - a
+
+            r1 =  self.coeficienteBusqueda + (np.random.random() * (1 -  self.coeficienteBusqueda))
+            A3 = 2 * a * r1 - a
+            
+            r2 =  self.coeficienteBusqueda + (np.random.random() * (1 -  self.coeficienteBusqueda))
+            r3 =  self.coeficienteBusqueda + (np.random.random() * (1 -  self.coeficienteBusqueda))
+            r4 = np.random.random()
+
+            C = 2 * r2
+            
+            # Calculo de la distancia del lobo a la presa.
+
+            posicionAlfa = self.posicionAlfa[i]
+            posicionBeta = self.posicionBeta[i]
+            posicionDelta = self.posicionDelta[i]
+            positions = self.positions[n][i]
+
+            M = np.abs(C * (self.lossAlfa * posicionAlfa + 
+                            self.lossBeta * posicionBeta + 
+                            self.lossDelta * posicionDelta) - positions)
+                            
+            V1 = self.posicionAlfa[i] - A1 * M
+            V2 = self.posicionBeta[i] - A2 * M 
+            V3 = self.posicionDelta[i] - A3 * M
+
+            # Reposionamiento del lobo.
+
+            self.positions[n][i] = (V1 + V2 + V3) / 3
+
+            # Efectuar el algoritmo ASA 
+
+            if (trigonometrica == "seno" and r4 < 0.5):
+
+                self.positions[n][i] += (
+                r1SCA * np.sin(r2) * np.abs(r3 * self.posicionAlfa[i] - self.positions[n][i])
+                )
+
+            elif (trigonometrica == "coseno" and r4 >= 0.5):
+
+                self.positions[n][i] += (
+                r1SCA * np.cos(r2) * np.abs(r3 * self.posicionAlfa[i] - self.positions[n][i])
+                )
+
