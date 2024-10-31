@@ -2,6 +2,10 @@ import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
 
+import pycuda.autoinit # type: ignore
+import pycuda.driver as cuda  # type: ignore
+from pycuda.compiler import SourceModule # type: ignore
+
 class GWO:
     def __init__(self, model, iterMaximo=10, numeroAgentes = 5, classWeight = None):
 
@@ -111,7 +115,7 @@ class GWO:
 
         for iteracion in range(self.iterMaximo):
 
-            self.GWOExploracion(datasetEntrenamiento, datasetEvaluacion, iteracion)
+            #self.GWOExploracion(datasetEntrenamiento, datasetEvaluacion, iteracion)
             self.GWOExplotacion(iteracion)
         
         return self.posicionAlfa
@@ -169,42 +173,83 @@ class GWO:
 
     def GWOExplotacion(self, iteracion):
 
-        a = 2 - iteracion * (2/self.iterMaximo)
+        a = 2 - iteracion * (2 / self.iterMaximo)
+        pesos = len(self.positions[0])
+        agentes = self.numeroAgentes
 
-        for n in range(self.numeroAgentes):
+        posiciones = np.array(self.positions, dtype=np.float32)
+        posicionAlfa = np.array(self.posicionAlfa, dtype=np.float32)
+        posicionBeta = np.array(self.posicionBeta, dtype=np.float32)
+        posicionDelta = np.array(self.posicionDelta, dtype=np.float32)
+        
+        # Alojar en  GPU
 
-         for i in tqdm(range(len(self.positions[n])), desc=f"Ajustando pesos Epoch {iteracion + 1} / {self.iterMaximo} (Agente {n + 1} / {self.numeroAgentes})", unit="peso"):
-                
-            r1 =  np.random.random()
-            r2 =  np.random.random()
-            A1 = 2 * a * r1 - a
-            C1 = 2 * r2
+        distanciaPosiciones = cuda.mem_alloc(posiciones.nbytes)
+        cuda.memcpy_htod(distanciaPosiciones, posiciones)
 
-            r1 =  np.random.random()
-            r2 =  np.random.random()
-            A2 = 2 * a * r1 - a
-            C2 = 2 * r2
+        distanciaPosicionAlfa = cuda.mem_alloc(posicionAlfa.nbytes)
+        cuda.memcpy_htod(distanciaPosicionAlfa, posicionAlfa)
 
-            r1 =  np.random.random() 
-            r2 =  np.random.random()        
-            A3 = 2 * a * r1 - a
-            C3 = 2 *r2
+        distanciaPosicionBeta = cuda.mem_alloc(posicionBeta.nbytes)
+        cuda.memcpy_htod(distanciaPosicionBeta, posicionBeta)
+
+        distanciaPoscionDelta = cuda.mem_alloc(posicionDelta.nbytes)
+        cuda.memcpy_htod(distanciaPoscionDelta, posicionDelta)
+        
+        mod = SourceModule("""
+        #include <curand_kernel.h>
+                        
+        __global__ void actualizar(float *posiciones, float *posicionAlfa, float *posicionBeta, float *posicionDelta, float a, int num_pesos, int num_agentes, unsigned long long seed) {
+            int tid = blockIdx.x * blockDim.x + threadIdx.x;
             
-            # Calculo de la distancia del lobo a la presa.
+            if (tid < num_agentes * num_pesos) {
+                curandState state;
+                curand_init(seed, tid, 0, &state);
+                
+                int n = tid / num_pesos;
+                int i = tid % num_pesos;
 
-            posicionAlfa = self.posicionAlfa[i]
-            posicionBeta = self.posicionBeta[i]
-            posicionDelta = self.posicionDelta[i]
-            posicionSolucion = self.positions[n][i]
+                float r1 = curand_uniform(&state);
+                float r2 = curand_uniform(&state);
+                float A1 = 2 * a * r1 - a;
+                float C1 = 2 * r2;
 
-            distanciaAlfa = np.abs(C1 * posicionAlfa - posicionSolucion)
-            distanciaBeta = np.abs(C2 * posicionBeta - posicionSolucion)
-            distanciaDelta = np.abs(C3 * posicionDelta - posicionSolucion)
+                r1 = curand_uniform(&state);
+                r2 = curand_uniform(&state);
+                float A2 = 2 * a * r1 - a;
+                float C2 = 2 * r2;
 
-            X1 = posicionAlfa - A1 * distanciaAlfa
-            X2 = posicionBeta - A2 * distanciaBeta
-            X3 = posicionBeta - A3 * distanciaDelta 
+                r1 = curand_uniform(&state);
+                r2 = curand_uniform(&state);
+                float A3 = 2 * a * r1 - a;
+                float C3 = 2 * r2;
 
-            # Reposionamiento del lobo.
+                float posicionAlfa_i = posicionAlfa[i];
+                float posicionBeta_i = posicionBeta[i];
+                float posicionDelta_i = posicionDelta[i];
+                float posicionSolucion_i = posiciones[n * num_pesos + i];
 
-            self.positions[n][i] = (X1 + X2 + X3) / 3
+                float distanciaAlfa = fabs(C1 * posicionAlfa_i - posicionSolucion_i);
+                float distanciaBeta = fabs(C2 * posicionBeta_i - posicionSolucion_i);
+                float distanciaDelta = fabs(C3 * posicionDelta_i - posicionSolucion_i);
+
+                float X1 = posicionAlfa_i - A1 * distanciaAlfa;
+                float X2 = posicionBeta_i - A2 * distanciaBeta;
+                float X3 = posicionDelta_i - A3 * distanciaDelta;
+
+                posiciones[n * num_pesos + i] = (X1 + X2 + X3) / 3;
+            }
+        }
+        """, no_extern_c=True)
+
+        # Inicializar y ejecutar el kernel
+        actualizar_posiciones = mod.get_function("actualizar")
+        block = 1024
+        grid = (pesos * agentes + block - 1) // block
+
+        actualizar_posiciones(distanciaPosiciones, distanciaPosicionAlfa, distanciaPosicionBeta, distanciaPoscionDelta, 
+                            np.float32(a), np.int32(pesos), np.int32(agentes), block=(block, 1, 1), grid=(grid, 1))
+
+        # Recuperamos los datos desde la GPU
+        cuda.memcpy_dtoh(posiciones, distanciaPosiciones)
+        self.positions = posiciones.reshape(agentes, pesos)
