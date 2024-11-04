@@ -243,7 +243,7 @@ class GWO:
         """, no_extern_c=True)
 
         # Inicializar y ejecutar el kernel
-        actualizar_posiciones = mod.get_function("actualizar")
+        actualizar_posiciones = mod.get_function("?__device_stub__Z10actualizarPfS_S_S_fiiy@@YAXPEAM000MHH_K@Z")
         block = 1024
         grid = (pesos * agentes + block - 1) // block
 
