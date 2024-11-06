@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
+import time
 
 import pycuda.autoinit # type: ignore
 import pycuda.driver as cuda  # type: ignore
@@ -15,13 +16,14 @@ class GWO:
         self.iterMaximo = iterMaximo
         self.numeroAgentes = numeroAgentes # Número de población, soluciones a buscar en cada iteración.
         self.classWeight = classWeight # Balanceo de clases
+        self.limiteSuperior = 1
+        self.limiteInferior = 0
 
         self.weights_structure = model.get_weights()
         self.cantidadPesos = self.obtenerCantidadPesos()
 
         # Variables GWO
 
-        self.loss = []
         self.lossAlfa = np.finfo(np.float32).max
         self.lossBeta = np.finfo(np.float32).max
         self.lossDelta =  np.finfo(np.float32).max
@@ -58,7 +60,7 @@ class GWO:
         for w in self.weights_structure:
 
             # Generar una matriz de valores aleatorios con la misma forma que los pesos 'w'
-            random_weights = np.random.uniform(-1, 1, w.shape)
+            random_weights = np.random.uniform(self.limiteInferior, self.limiteSuperior, w.shape)
             pocisionRandom.append(random_weights.flatten())
 
         return np.concatenate(pocisionRandom)
@@ -80,15 +82,16 @@ class GWO:
 
         prediccionesCorrectas = 0
         total = 0
-        loss = 0
+        loss = 0.0
         
         for x, y in tqdm(dataset, desc = f"Calculando Perdida", unit="batch"):
 
             # Realizar una predicción por batch y extraer su perdida.
 
             prediccion = self.model.predict(x, verbose = 0) 
-            lossBatch = tf.keras.losses.binary_crossentropy(y, prediccion)
             etiqueta = y.numpy().flatten()  
+            binaryLoss = tf.keras.losses.binary_crossentropy
+            lossBatch = binaryLoss(y, prediccion)
 
             if classWeight is not None:
 
@@ -99,8 +102,11 @@ class GWO:
                     weights[i] = classWeight[label]    
 
                 lossBatch *=  weights
-            
-            loss += tf.reduce_sum(lossBatch).numpy()  # Sumar la pérdida del batch
+
+            for i in lossBatch:
+
+                loss += i.numpy()
+
             total += len(y)
 
             prediccionClase = tf.round(prediccion)
@@ -115,7 +121,7 @@ class GWO:
 
         for iteracion in range(self.iterMaximo):
 
-            #self.GWOExploracion(datasetEntrenamiento, datasetEvaluacion, iteracion)
+            self.GWOExploracion(datasetEntrenamiento, datasetEvaluacion, iteracion)
             self.GWOExplotacion(iteracion)
         
         return self.posicionAlfa
@@ -127,8 +133,8 @@ class GWO:
             print(f"Exploración Epoch {iteracion + 1} / {self.iterMaximo} (Agente {n + 1} / {self.numeroAgentes})| Entrenamiento | Validación: ")
 
             self.setWeights(self.positions[n])
-            loss = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight)
-            self.loss.append(loss)
+            #loss = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight)
+            loss, _ = self.model.evaluate(datasetEntrenamiento, verbose = 1)
 
             # Evaluar la pérdida en los datos de evaluación
 
@@ -173,83 +179,84 @@ class GWO:
 
     def GWOExplotacion(self, iteracion):
 
-        a = 2 - iteracion * (2 / self.iterMaximo)
-        pesos = len(self.positions[0])
-        agentes = self.numeroAgentes
+        for i in range(self.numeroAgentes):
 
-        posiciones = np.array(self.positions, dtype=np.float32)
-        posicionAlfa = np.array(self.posicionAlfa, dtype=np.float32)
-        posicionBeta = np.array(self.posicionBeta, dtype=np.float32)
-        posicionDelta = np.array(self.posicionDelta, dtype=np.float32)
-        
-        # Alojar en  GPU
+            tiempoInicial = time.time()
 
-        distanciaPosiciones = cuda.mem_alloc(posiciones.nbytes)
-        cuda.memcpy_htod(distanciaPosiciones, posiciones)
+            a = 2 - iteracion * (2 / self.iterMaximo)
+            pesos = len(self.positions)
 
-        distanciaPosicionAlfa = cuda.mem_alloc(posicionAlfa.nbytes)
-        cuda.memcpy_htod(distanciaPosicionAlfa, posicionAlfa)
+            r1 = np.random.uniform(0, 1, size=(3 * pesos)).astype(np.float32)
+            r2 = np.random.uniform(0, 1, size=(3 * pesos)).astype(np.float32)
 
-        distanciaPosicionBeta = cuda.mem_alloc(posicionBeta.nbytes)
-        cuda.memcpy_htod(distanciaPosicionBeta, posicionBeta)
-
-        distanciaPoscionDelta = cuda.mem_alloc(posicionDelta.nbytes)
-        cuda.memcpy_htod(distanciaPoscionDelta, posicionDelta)
-        
-        mod = SourceModule("""
-        #include <curand_kernel.h>
-                        
-        __global__ void actualizar(float *posiciones, float *posicionAlfa, float *posicionBeta, float *posicionDelta, float a, int num_pesos, int num_agentes, unsigned long long seed) {
-            int tid = blockIdx.x * blockDim.x + threadIdx.x;
+            posiciones = np.array(self.positions[i], dtype=np.float32)
+            posicionAlfa = np.array(self.posicionAlfa, dtype=np.float32)
+            posicionBeta = np.array(self.posicionBeta, dtype=np.float32)
+            posicionDelta = np.array(self.posicionDelta, dtype=np.float32)
             
-            if (tid < num_agentes * num_pesos) {
-                curandState state;
-                curand_init(seed, tid, 0, &state);
+            # Alojar en  GPU
+
+            distanciaPosiciones = cuda.mem_alloc(posiciones.nbytes)
+            cuda.memcpy_htod(distanciaPosiciones, posiciones)
+
+            distanciaPosicionAlfa = cuda.mem_alloc(posicionAlfa.nbytes)
+            cuda.memcpy_htod(distanciaPosicionAlfa, posicionAlfa)
+
+            distanciaPosicionBeta = cuda.mem_alloc(posicionBeta.nbytes)
+            cuda.memcpy_htod(distanciaPosicionBeta, posicionBeta)
+
+            distanciaPoscionDelta = cuda.mem_alloc(posicionDelta.nbytes)
+            cuda.memcpy_htod(distanciaPoscionDelta, posicionDelta)
+
+            R1GPU = cuda.mem_alloc(r1.nbytes)
+            R2GPU = cuda.mem_alloc(r2.nbytes)
+            cuda.memcpy_htod(R1GPU, r1)
+            cuda.memcpy_htod(R2GPU, r2)
                 
-                int n = tid / num_pesos;
-                int i = tid % num_pesos;
+            mod = SourceModule("""
+            __global__ void actualizar(float *posiciones, float *posicionAlfa, float *posicionBeta, float *posicionDelta,
+                                    float *r1, float *r2, float a, int num_pesos) {
+                int thread = blockIdx.x * blockDim.x + threadIdx.x;
+                
+                if (thread < num_pesos) {
 
-                float r1 = curand_uniform(&state);
-                float r2 = curand_uniform(&state);
-                float A1 = 2 * a * r1 - a;
-                float C1 = 2 * r2;
+                    float A1 = 2 * a * r1[thread] - a;
+                    float C1 = 2 * r2[thread];
+                    float A2 = 2 * a * r1[thread +  num_pesos] - a;
+                    float C2 = 2 * r2[thread + num_pesos];
+                    float A3 = 2 * a * r1[thread + 2  * num_pesos] - a;
+                    float C3 = 2 * r2[thread + 2 * num_pesos];
 
-                r1 = curand_uniform(&state);
-                r2 = curand_uniform(&state);
-                float A2 = 2 * a * r1 - a;
-                float C2 = 2 * r2;
+                    float posicionAlfa_i = posicionAlfa[thread];
+                    float posicionBeta_i = posicionBeta[thread];
+                    float posicionDelta_i = posicionDelta[thread];
+                    float posicionSolucion_i = posiciones[thread];
 
-                r1 = curand_uniform(&state);
-                r2 = curand_uniform(&state);
-                float A3 = 2 * a * r1 - a;
-                float C3 = 2 * r2;
+                    float distanciaAlfa = fabs(C1 * posicionAlfa_i - posicionSolucion_i);
+                    float distanciaBeta = fabs(C2 * posicionBeta_i - posicionSolucion_i);
+                    float distanciaDelta = fabs(C3 * posicionDelta_i - posicionSolucion_i);
 
-                float posicionAlfa_i = posicionAlfa[i];
-                float posicionBeta_i = posicionBeta[i];
-                float posicionDelta_i = posicionDelta[i];
-                float posicionSolucion_i = posiciones[n * num_pesos + i];
+                    float X1 = posicionAlfa_i - A1 * distanciaAlfa;
+                    float X2 = posicionBeta_i - A2 * distanciaBeta;
+                    float X3 = posicionDelta_i - A3 * distanciaDelta;
 
-                float distanciaAlfa = fabs(C1 * posicionAlfa_i - posicionSolucion_i);
-                float distanciaBeta = fabs(C2 * posicionBeta_i - posicionSolucion_i);
-                float distanciaDelta = fabs(C3 * posicionDelta_i - posicionSolucion_i);
-
-                float X1 = posicionAlfa_i - A1 * distanciaAlfa;
-                float X2 = posicionBeta_i - A2 * distanciaBeta;
-                float X3 = posicionDelta_i - A3 * distanciaDelta;
-
-                posiciones[n * num_pesos + i] = (X1 + X2 + X3) / 3;
+                    posiciones[i] = (X1 + X2 + X3) / 3;
+                }
             }
-        }
-        """, no_extern_c=True)
+            """)
 
-        # Inicializar y ejecutar el kernel
-        actualizar_posiciones = mod.get_function("?__device_stub__Z10actualizarPfS_S_S_fiiy@@YAXPEAM000MHH_K@Z")
-        block = 1024
-        grid = (pesos * agentes + block - 1) // block
+            # Inicializar y ejecutar el kernel
+            actualizar_posiciones = mod.get_function("actualizar")
+            block = 1024
+            grid = (pesos + block - 1) // block
 
-        actualizar_posiciones(distanciaPosiciones, distanciaPosicionAlfa, distanciaPosicionBeta, distanciaPoscionDelta, 
-                            np.float32(a), np.int32(pesos), np.int32(agentes), block=(block, 1, 1), grid=(grid, 1))
+            actualizar_posiciones(distanciaPosiciones, distanciaPosicionAlfa, distanciaPosicionBeta, distanciaPoscionDelta,
+                                R1GPU, R2GPU, np.float32(a), np.int32(pesos),
+                                block=(block, 1, 1), grid=(grid, 1))
 
-        # Recuperamos los datos desde la GPU
-        cuda.memcpy_dtoh(posiciones, distanciaPosiciones)
-        self.positions = posiciones.reshape(agentes, pesos)
+            # Recuperamos los datos desde la GPU
+            cuda.memcpy_dtoh(posiciones, distanciaPosiciones)
+            self.positions[i] = posiciones
+
+            tiempoFinal = time.time()
+            print(f"Explotación {i + 1} / {self.numeroAgentes} tiempo de ejecución: {tiempoFinal - tiempoInicial} segundos")
