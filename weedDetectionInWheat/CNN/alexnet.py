@@ -156,7 +156,7 @@ alexnet.summary()
 
 history=alexnet.fit(
     dataArgumentationTrain,
-    epochs=50,
+    epochs=100,
     validation_data=validacionDataFrame,
     validation_freq=1,
     class_weight = pesosClasesDiccionario
@@ -164,7 +164,7 @@ history=alexnet.fit(
 
 # Almacenar el modelo en la siguiente dirección relativa.
 
-alexnet.save('weedDetectionInWheat/alexnet.keras') 
+alexnet.save('weedDetectionInWheat/CNN/alexnet.keras') 
 
 # Mostrar los datos relativos al entrenamiento.
 

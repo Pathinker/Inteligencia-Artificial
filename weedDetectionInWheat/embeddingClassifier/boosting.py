@@ -50,6 +50,8 @@ validacionDataFrame = tf.keras.utils.image_dataset_from_directory(
 
 alexnet = keras.models.load_model("weedDetectionInWheat/CNN/alexnet.keras")
 
+alexnet.evaluate(validacionDataFrame, verbose = 1)
+
 # Extraer hasta la capa flatten deseada para el entrenamiento del SVM.
 
 nombreCapa = "conv2d"

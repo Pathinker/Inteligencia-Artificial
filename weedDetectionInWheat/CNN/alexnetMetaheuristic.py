@@ -88,5 +88,5 @@ best_weights = gwo.optimize(dataArgumentationTrain, validacionDataFrame)
 
 # Establecer los mejores pesos encontrados al modelo
 
-arquitecturaCNN.set_weights(best_weights)
+#arquitecturaCNN.set_weights(best_weights)
 arquitecturaCNN.save('weedDetectionInWheat/CNN/alexnetMetaheuristic.keras')

@@ -16,8 +16,8 @@ class GWO:
         self.iterMaximo = iterMaximo
         self.numeroAgentes = numeroAgentes # Número de población, soluciones a buscar en cada iteración.
         self.classWeight = classWeight # Balanceo de clases
-        self.limiteSuperior = 1
-        self.limiteInferior = 0
+        self.limiteSuperior = 100
+        self.limiteInferior = -100
 
         self.weights_structure = model.get_weights()
         self.cantidadPesos = self.obtenerCantidadPesos()
@@ -124,7 +124,7 @@ class GWO:
             self.GWOExploracion(datasetEntrenamiento, datasetEvaluacion, iteracion)
             self.GWOExplotacion(iteracion)
         
-        return self.posicionAlfa
+        self.setWeights(self.posicionAlfa)
     
     def GWOExploracion(self, datasetEntrenamiento, datasetEvaluacion, iteracion):
 
@@ -240,7 +240,7 @@ class GWO:
                     float X2 = posicionBeta_i - A2 * distanciaBeta;
                     float X3 = posicionDelta_i - A3 * distanciaDelta;
 
-                    posiciones[i] = (X1 + X2 + X3) / 3;
+                    posiciones[thread] = (X1 + X2 + X3) / 3;
                 }
             }
             """)
