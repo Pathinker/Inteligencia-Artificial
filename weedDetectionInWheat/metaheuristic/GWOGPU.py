@@ -21,6 +21,7 @@ class GWO:
 
         self.weights_structure = model.get_weights()
         self.cantidadPesos = self.obtenerCantidadPesos()
+        self.cantidadPesos = np.uint32(self.cantidadPesos)
 
         # Variables GWO
 
@@ -121,7 +122,7 @@ class GWO:
 
         for iteracion in range(self.iterMaximo):
 
-            self.GWOExploracion(datasetEntrenamiento, datasetEvaluacion, iteracion)
+            #self.GWOExploracion(datasetEntrenamiento, datasetEvaluacion, iteracion)
             self.GWOExplotacion(iteracion)
         
         self.setWeights(self.posicionAlfa)
@@ -135,9 +136,6 @@ class GWO:
             self.setWeights(self.positions[n])
             #loss = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight)
             loss, _ = self.model.evaluate(datasetEntrenamiento, verbose = 1)
-
-            # Evaluar la pérdida en los datos de evaluación
-
             self.model.evaluate(datasetEvaluacion, verbose=1)    
 
             # Actualizar alpha, beta y delta al detectar un agente menor equivalente a una menor perdida
@@ -182,9 +180,9 @@ class GWO:
         for i in range(self.numeroAgentes):
 
             tiempoInicial = time.time()
+            pesos = len(self.positions[0])
 
             a = 2 - iteracion * (2 / self.iterMaximo)
-            pesos = len(self.positions)
 
             r1 = np.random.uniform(0, 1, size=(3 * pesos)).astype(np.float32)
             r2 = np.random.uniform(0, 1, size=(3 * pesos)).astype(np.float32)
@@ -212,20 +210,22 @@ class GWO:
             R2GPU = cuda.mem_alloc(r2.nbytes)
             cuda.memcpy_htod(R1GPU, r1)
             cuda.memcpy_htod(R2GPU, r2)
+
+            print("Pesos Previo GWO: ", self.positions[i])
                 
             mod = SourceModule("""
             __global__ void actualizar(float *posiciones, float *posicionAlfa, float *posicionBeta, float *posicionDelta,
-                                    float *r1, float *r2, float a, int num_pesos) {
+                                    float *r1, float *r2, float a, int numeroPesos, float limiteInferior, float limiteSuperior) {
                 int thread = blockIdx.x * blockDim.x + threadIdx.x;
                 
-                if (thread < num_pesos) {
+                if (thread < numeroPesos) {
 
                     float A1 = 2 * a * r1[thread] - a;
                     float C1 = 2 * r2[thread];
-                    float A2 = 2 * a * r1[thread +  num_pesos] - a;
-                    float C2 = 2 * r2[thread + num_pesos];
-                    float A3 = 2 * a * r1[thread + 2  * num_pesos] - a;
-                    float C3 = 2 * r2[thread + 2 * num_pesos];
+                    float A2 = 2 * a * r1[thread +  numeroPesos] - a;
+                    float C2 = 2 * r2[thread + numeroPesos];
+                    float A3 = 2 * a * r1[thread + 2  * numeroPesos] - a;
+                    float C3 = 2 * r2[thread + 2 * numeroPesos];
 
                     float posicionAlfa_i = posicionAlfa[thread];
                     float posicionBeta_i = posicionBeta[thread];
@@ -241,6 +241,16 @@ class GWO:
                     float X3 = posicionDelta_i - A3 * distanciaDelta;
 
                     posiciones[thread] = (X1 + X2 + X3) / 3;
+                               
+                    if(posiciones[thread] < limiteInferior){
+
+                        posiciones[thread] = limiteInferior;            
+                    }
+                    else if(posiciones[thread] > limiteSuperior){
+                               
+                        posiciones[thread] = limiteSuperior;
+                    }
+                               
                 }
             }
             """)
@@ -251,12 +261,16 @@ class GWO:
             grid = (pesos + block - 1) // block
 
             actualizar_posiciones(distanciaPosiciones, distanciaPosicionAlfa, distanciaPosicionBeta, distanciaPoscionDelta,
-                                R1GPU, R2GPU, np.float32(a), np.int32(pesos),
+                                R1GPU, R2GPU, np.float32(a), np.int32(pesos), np.float32(self.limiteInferior), np.float32(self.limiteSuperior),
                                 block=(block, 1, 1), grid=(grid, 1))
 
             # Recuperamos los datos desde la GPU
             cuda.memcpy_dtoh(posiciones, distanciaPosiciones)
             self.positions[i] = posiciones
+
+            print("Pesos Después GWO: ", self.positions[i])
+            print("Peso Maximo:", np.max(self.positions[i]))
+            print("Peso Minimo", np.min(self.positions[i]))
 
             tiempoFinal = time.time()
             print(f"Explotación {i + 1} / {self.numeroAgentes} tiempo de ejecución: {tiempoFinal - tiempoInicial} segundos")
