@@ -81,7 +81,7 @@ arquitecturaCNN.compile(
 )
 
 # Inicializar GWO con la estructura de los pesos del modelo
-gwo = GWO(model=arquitecturaCNN, iterMaximo=20, classWeight=pesosClases)
+gwo = GWO(model=arquitecturaCNN, iterMaximo=40)
 
 # Optimizar con GWO
 best_weights = gwo.optimize(dataArgumentationTrain, validacionDataFrame)

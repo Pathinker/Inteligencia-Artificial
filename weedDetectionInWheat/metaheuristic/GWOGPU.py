@@ -89,28 +89,24 @@ class GWO:
 
             # Realizar una predicción por batch y extraer su perdida.
 
-            prediccion = self.model.predict(x, verbose = 0) 
-            etiqueta = y.numpy().flatten()  
-            binaryLoss = tf.keras.losses.binary_crossentropy
-            lossBatch = binaryLoss(y, prediccion)
+            yPrediccion = self.model.predict(x, verbose = 0) 
+            lossBatch = tf.keras.losses.binary_crossentropy(y, yPrediccion)
 
             if classWeight is not None:
-
+                             
                 weights = np.zeros_like(lossBatch.numpy())  # Crear un arreglo de ceros con la misma forma que loss_batch
-                
+                etiqueta = y.numpy().flatten() 
+
                 for i in range(len(etiqueta)): 
                     label = etiqueta[i]
                     weights[i] = classWeight[label]    
 
                 lossBatch *=  weights
-
-            for i in lossBatch:
-
-                loss += i.numpy()
-
+            
+            loss += tf.reduce_sum(lossBatch).numpy()
             total += len(y)
 
-            prediccionClase = tf.round(prediccion)
+            prediccionClase = tf.round(yPrediccion)
             prediccionesCorrectas += tf.reduce_sum(tf.cast(tf.equal(prediccionClase, y), tf.float32)).numpy()  # Contar aciertos transformando un tensor ft float 32.
         
         accuracy = prediccionesCorrectas / total
@@ -122,7 +118,7 @@ class GWO:
 
         for iteracion in range(self.iterMaximo):
 
-            #self.GWOExploracion(datasetEntrenamiento, datasetEvaluacion, iteracion)
+            self.GWOExploracion(datasetEntrenamiento, datasetEvaluacion, iteracion)
             self.GWOExplotacion(iteracion)
         
         self.setWeights(self.posicionAlfa)
@@ -134,8 +130,8 @@ class GWO:
             print(f"Exploración Epoch {iteracion + 1} / {self.iterMaximo} (Agente {n + 1} / {self.numeroAgentes})| Entrenamiento | Validación: ")
 
             self.setWeights(self.positions[n])
-            #loss = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight)
-            loss, _ = self.model.evaluate(datasetEntrenamiento, verbose = 1)
+            loss = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight)
+            #loss, _ = self.model.evaluate(datasetEntrenamiento, verbose = 1)
             self.model.evaluate(datasetEvaluacion, verbose=1)    
 
             # Actualizar alpha, beta y delta al detectar un agente menor equivalente a una menor perdida
