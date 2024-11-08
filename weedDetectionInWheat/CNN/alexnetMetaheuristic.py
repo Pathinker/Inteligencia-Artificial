@@ -77,11 +77,12 @@ pesosClases = CNN.obtenerPesosClases()
 arquitecturaCNN.compile(
     loss='binary_crossentropy',
     optimizer=tf.keras.optimizers.Adam(0.001),
-    metrics=['accuracy']
+    metrics=['accuracy'],
 )
 
+
 # Inicializar GWO con la estructura de los pesos del modelo
-gwo = GWO(model=arquitecturaCNN, iterMaximo=40)
+gwo = GWO(model=arquitecturaCNN, iterMaximo=50, classWeight = pesosClases)
 
 # Optimizar con GWO
 best_weights = gwo.optimize(dataArgumentationTrain, validacionDataFrame)

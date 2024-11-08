@@ -148,8 +148,8 @@ alexnet.compile(
 
     loss='binary_crossentropy', # Es cambiado el método númerico de perdida, al disponer de un resultado binario es optado binary crossentropy.
     optimizer=tf.keras.optimizers.Adam(0.001),
-    metrics=['accuracy']    
-
+    metrics=['accuracy'],
+    weighted_metrics = pesosClasesDiccionario    
 )
 
 alexnet.summary()
@@ -159,7 +159,6 @@ history=alexnet.fit(
     epochs=100,
     validation_data=validacionDataFrame,
     validation_freq=1,
-    class_weight = pesosClasesDiccionario
 )
 
 # Almacenar el modelo en la siguiente dirección relativa.

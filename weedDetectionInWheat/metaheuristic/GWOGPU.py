@@ -61,7 +61,8 @@ class GWO:
         for w in self.weights_structure:
 
             # Generar una matriz de valores aleatorios con la misma forma que los pesos 'w'
-            random_weights = np.random.uniform(self.limiteInferior, self.limiteSuperior, w.shape)
+            # random_weights = np.random.uniform(self.limiteInferior, self.limiteSuperior, w.shape)
+            random_weights = np.ones(w.shape)
             pocisionRandom.append(random_weights.flatten())
 
         return np.concatenate(pocisionRandom)
@@ -81,37 +82,28 @@ class GWO:
 
     def calcularPerdidaConPesos(self, dataset, classWeight):
 
-        prediccionesCorrectas = 0
-        total = 0
         loss = 0.0
+        accuracy = 0.0
+        total = 0
         
         for x, y in tqdm(dataset, desc = f"Calculando Perdida", unit="batch"):
 
-            # Realizar una predicción por batch y extraer su perdida.
+            pesosPonderados = []
 
-            yPrediccion = self.model.predict(x, verbose = 0) 
-            lossBatch = tf.keras.losses.binary_crossentropy(y, yPrediccion)
+            for i in y:
 
-            if classWeight is not None:
-                             
-                weights = np.zeros_like(lossBatch.numpy())  # Crear un arreglo de ceros con la misma forma que loss_batch
-                etiqueta = y.numpy().flatten() 
+                peso = classWeight[int(i)]
+                pesosPonderados.append(peso)
 
-                for i in range(len(etiqueta)): 
-                    label = etiqueta[i]
-                    weights[i] = classWeight[label]    
-
-                lossBatch *=  weights
+            pesosPonderados = np.array(pesosPonderados)
             
-            loss += tf.reduce_sum(lossBatch).numpy()
-            total += len(y)
+            lossBatch, accuracyBatch = self.model.evaluate(x, y, sample_weight = pesosPonderados, verbose = 0)
 
-            prediccionClase = tf.round(yPrediccion)
-            prediccionesCorrectas += tf.reduce_sum(tf.cast(tf.equal(prediccionClase, y), tf.float32)).numpy()  # Contar aciertos transformando un tensor ft float 32.
-        
-        accuracy = prediccionesCorrectas / total
-        print(f"Precisión: {accuracy} Pérdida: {loss / total}")
+            loss += lossBatch
+            accuracy += accuracyBatch
+            total += 1
 
+        print(f"loss: {loss/total}, Accuracy = {accuracy / total}")
         return loss / total  
     
     def optimize(self, datasetEntrenamiento, datasetEvaluacion):
@@ -131,12 +123,9 @@ class GWO:
 
             self.setWeights(self.positions[n])
             loss = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight)
-            #loss, _ = self.model.evaluate(datasetEntrenamiento, verbose = 1)
             self.model.evaluate(datasetEvaluacion, verbose=1)    
 
             # Actualizar alpha, beta y delta al detectar un agente menor equivalente a una menor perdida
-
-            print("Error: ", loss)
 
             if loss < self.lossAlfa:
 
