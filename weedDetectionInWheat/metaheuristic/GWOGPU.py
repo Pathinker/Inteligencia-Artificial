@@ -25,9 +25,21 @@ class GWO:
 
         # Variables GWO
 
-        self.lossAlfa = np.finfo(np.float32).max
-        self.lossBeta = np.finfo(np.float32).max
-        self.lossDelta =  np.finfo(np.float32).max
+        self.lossAlfa = np.finfo(np.float64).max
+        self.lossBeta = np.finfo(np.float64).max
+        self.lossDelta =  np.finfo(np.float64).max
+
+        self.accuracyAlfa = 0.0
+        self.accuracyBeta = 0.0
+        self.accuracyDelta = 0.0
+
+        self.valLossAlfa = np.finfo(np.float64).max
+        self.valLossBeta = np.finfo(np.float64).max
+        self.valLossDelta =  np.finfo(np.float64).max
+
+        self.valAccuracyAlfa = 0.0
+        self.valAccuracyBeta = 0.0
+        self.valAccuracyDelta = 0.0
 
         self.positions = np.zeros((numeroAgentes, self.cantidadPesos))
         self.posicionAlfa = np.zeros(self.cantidadPesos)
@@ -61,8 +73,7 @@ class GWO:
         for w in self.weights_structure:
 
             # Generar una matriz de valores aleatorios con la misma forma que los pesos 'w'
-            # random_weights = np.random.uniform(self.limiteInferior, self.limiteSuperior, w.shape)
-            random_weights = np.ones(w.shape)
+            random_weights = np.random.uniform(self.limiteInferior, self.limiteSuperior, w.shape)
             pocisionRandom.append(random_weights.flatten())
 
         return np.concatenate(pocisionRandom)
@@ -104,7 +115,7 @@ class GWO:
             total += 1
 
         print(f"loss: {loss/total}, Accuracy = {accuracy / total}")
-        return loss / total  
+        return (loss / total), (accuracy / total)  
     
     def optimize(self, datasetEntrenamiento, datasetEvaluacion):
 
@@ -122,43 +133,42 @@ class GWO:
             print(f"Exploración Epoch {iteracion + 1} / {self.iterMaximo} (Agente {n + 1} / {self.numeroAgentes})| Entrenamiento | Validación: ")
 
             self.setWeights(self.positions[n])
-            loss = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight)
-            self.model.evaluate(datasetEvaluacion, verbose=1)    
-
-            # Actualizar alpha, beta y delta al detectar un agente menor equivalente a una menor perdida
+            loss, accuracy = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight)
+            valLoss, valAccuracy = self.model.evaluate(datasetEvaluacion, verbose=1)    
 
             if loss < self.lossAlfa:
 
-                print("Actualización Alfa: ", self.lossAlfa)
-                print("Posiciones Alfa: ", self.posicionAlfa)
-
-                # Actualizar Alpha y mover los otros lobos hacia abajo
+                print("Actualización Alfa")
                 
-                self.lossDelta, self.posicionDelta = self.lossBeta, np.ravel(self.posicionBeta.copy())
-                self.lossBeta, self.posicionBeta = self.lossAlfa, np.ravel(self.posicionAlfa.copy())
-                self.lossAlfa, self.posicionAlfa = loss, np.ravel(self.positions[n, :].copy())
+                self.lossDelta, self.accuracyDelta, self.posicionDelta = self.lossBeta, self.accuracyBeta, np.ravel(self.posicionBeta.copy())
+                self.lossBeta, self.accuracyBeta, self.posicionBeta = self.lossAlfa, self.accuracyAlfa, np.ravel(self.posicionAlfa.copy())
+                self.lossAlfa, self.accuracyAlfa, self.posicionAlfa = loss, accuracy, np.ravel(self.positions[n, :].copy())
+
+                self.valLossDelta, self.valAccuracyDelta = self.valLossBeta, self.valAccuracyBeta
+                self.valLossBeta, self.valAccuracyBeta = self.valLossAlfa, self.valAccuracyAlfa
+                self.valLossAlfa, self.valAccuracyAlfa = valLoss, valAccuracy
 
             elif loss < self.lossBeta:
 
-                print("Actualización Beta: ", self.lossBeta)
-                print("Posiciones Beta: ", self.posicionBeta)
+                print("Actualización Beta")
 
-                self.lossDelta, self.posicionDelta = self.lossBeta, np.ravel(self.posicionBeta.copy())
-                self.lossBeta, self.posicionBeta = loss, np.ravel(self.positions[n, :].copy())
+                self.lossDelta, self.accuracyDelta, self.posicionDelta = self.lossBeta, self.accuracyBeta, np.ravel(self.posicionBeta.copy())
+                self.lossBeta, self.accuracyBeta, self.posicionBeta = loss, accuracy, np.ravel(self.positions[n, :].copy())
+
+                self.valLossDelta, self.valAccuracyDelta = self.valLossBeta, self.valAccuracyBeta
+                self.valLossBeta, self.valAccuracyBeta = valLoss, valAccuracy
 
             elif loss < self.lossDelta:
 
-                print("Actualización Delta: ", self.lossDelta)
-                print("Posiciones Delta: ", self.posicionDelta)
+                print("Actualización Delta")
                     
-                self.lossDelta, self.posicionDelta = loss, np.ravel(self.positions[n, :].copy())
+                self.lossDelta, self.accuracyDelta, self.posicionDelta = loss, accuracy, np.ravel(self.positions[n, :].copy())
 
-            print("Perdida Alfa: ", self.lossAlfa)
-            print("Posiciones Alfa: ", self.posicionAlfa)
-            print("Perdida Beta: ", self.lossBeta)
-            print("Posiciones Beta: ", self.posicionBeta)
-            print("Perdida Delta: ", self.lossDelta)
-            print("Posiciones Delta: ", self.posicionDelta)
+                self.valLossDelta, self.valAccuracyDelta = valLoss, valAccuracy
+
+            print(f"Alfa -> Perdida: {self.lossAlfa}, Accuracy: {self.accuracyAlfa}, valLoss: {self.valLossAlfa}, valAccuracy: {self.valAccuracyAlfa}")
+            print(f"Beta -> Perdida: {self.lossBeta}, Accuracy: {self.accuracyBeta}, valLoss: {self.valLossBeta}, valAccuracy: {self.valAccuracyBeta}")
+            print(f"Delta -> Perdida: {self.lossDelta}, Accuracy: {self.accuracyDelta}, valLoss: {self.valLossDelta}, valAccuracy: {self.valAccuracyDelta}")
 
     def GWOExplotacion(self, iteracion):
 
@@ -196,8 +206,6 @@ class GWO:
             cuda.memcpy_htod(R1GPU, r1)
             cuda.memcpy_htod(R2GPU, r2)
 
-            print("Pesos Previo GWO: ", self.positions[i])
-                
             mod = SourceModule("""
             __global__ void actualizar(float *posiciones, float *posicionAlfa, float *posicionBeta, float *posicionDelta,
                                     float *r1, float *r2, float a, int numeroPesos, float limiteInferior, float limiteSuperior) {
@@ -252,10 +260,6 @@ class GWO:
             # Recuperamos los datos desde la GPU
             cuda.memcpy_dtoh(posiciones, distanciaPosiciones)
             self.positions[i] = posiciones
-
-            print("Pesos Después GWO: ", self.positions[i])
-            print("Peso Maximo:", np.max(self.positions[i]))
-            print("Peso Minimo", np.min(self.positions[i]))
 
             tiempoFinal = time.time()
             print(f"Explotación {i + 1} / {self.numeroAgentes} tiempo de ejecución: {tiempoFinal - tiempoInicial} segundos")

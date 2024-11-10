@@ -2,8 +2,8 @@ import tensorflow as tf
 from tensorflow import keras
 import numpy as np
 from pathlib import Path
-import matplotlib.pyplot as plt
 from sklearn.utils.class_weight import compute_class_weight # type: ignore
+from tensorflow.keras.models import load_model # type: ignore
 
 # Cargar el set de datos.
 
@@ -148,37 +148,30 @@ alexnet.compile(
 
     loss='binary_crossentropy', # Es cambiado el método númerico de perdida, al disponer de un resultado binario es optado binary crossentropy.
     optimizer=tf.keras.optimizers.Adam(0.001),
-    metrics=['accuracy'],
-    weighted_metrics = pesosClasesDiccionario    
+    metrics=['accuracy'] 
 )
 
 alexnet.summary()
 
 history=alexnet.fit(
     dataArgumentationTrain,
-    epochs=100,
+    epochs=1,
     validation_data=validacionDataFrame,
     validation_freq=1,
+    class_weight = pesosClasesDiccionario
 )
 
 # Almacenar el modelo en la siguiente dirección relativa.
 
+alexnet.evaluate(validacionDataFrame, verbose = 1)
+
 alexnet.save('weedDetectionInWheat/CNN/alexnet.keras') 
+
+alexnetLoad = keras.models.load_model("weedDetectionInWheat/CNN/alexnet.keras")
+alexnetLoad.evaluate(validacionDataFrame, verbose = 1)
 
 # Mostrar los datos relativos al entrenamiento.
 
 alexnet.history.history.keys()
 
-f,ax = plt.subplots(2,1,figsize=(10,10)) 
-
-ax[0].plot(alexnet.history.history['loss'],color='b',label='Training Loss')
-ax[0].plot(alexnet.history.history['val_loss'],color='r',label='Validation Loss')
-
-#Plotting the training accuracy and validation accuracy
-ax[1].plot(alexnet.history.history['accuracy'],color='b',label='Training  Accuracy')
-ax[1].plot(alexnet.history.history['val_accuracy'],color='r',label='Validation Accuracy')
-
 print('Accuracy Score = ',np.max(history.history['val_accuracy']))
-
-plt.legend()
-plt.show()
