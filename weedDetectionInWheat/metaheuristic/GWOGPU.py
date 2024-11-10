@@ -41,6 +41,11 @@ class GWO:
         self.valAccuracyBeta = 0.0
         self.valAccuracyDelta = 0.0
 
+        self.lossModel = []
+        self.accuracyModel = []
+        self.valLossModel = []
+        self.valAccuracyModel = []
+
         self.positions = np.zeros((numeroAgentes, self.cantidadPesos))
         self.posicionAlfa = np.zeros(self.cantidadPesos)
         self.posicionBeta = np.zeros(self.cantidadPesos)
@@ -123,8 +128,22 @@ class GWO:
 
             self.GWOExploracion(datasetEntrenamiento, datasetEvaluacion, iteracion)
             self.GWOExplotacion(iteracion)
+
+            self.accuracyModel.append(self.accuracyAlfa)
+            self.lossModel.append(self.lossAlfa)
+            self.valAccuracyModel.append(self.valAccuracyAlfa)
+            self.valLossModel.append(self.valLossAlfa)
         
         self.setWeights(self.posicionAlfa)
+
+        with open('weedDetectionInWheat/CNN/MetaheuristicReport.txt', 'w') as f:
+
+            f.write(','.join(map(str, self.accuracyModel)) + '\n') 
+            f.write(','.join(map(str, self.lossModel)) + '\n') 
+            f.write(','.join(map(str, self.valAccuracyModel)) + '\n') 
+            f.write(','.join(map(str, self.valLossModel)) + '\n')
+
+        return self.model
     
     def GWOExploracion(self, datasetEntrenamiento, datasetEvaluacion, iteracion):
 
