@@ -155,7 +155,7 @@ alexnet.summary()
 
 history=alexnet.fit(
     dataArgumentationTrain,
-    epochs=1,
+    epochs=100,
     validation_data=validacionDataFrame,
     validation_freq=1,
     class_weight = pesosClasesDiccionario
@@ -166,9 +166,6 @@ history=alexnet.fit(
 alexnet.evaluate(validacionDataFrame, verbose = 1)
 
 alexnet.save('weedDetectionInWheat/CNN/alexnet.keras') 
-
-alexnetLoad = keras.models.load_model("weedDetectionInWheat/CNN/alexnet.keras")
-alexnetLoad.evaluate(validacionDataFrame, verbose = 1)
 
 # Mostrar los datos relativos al entrenamiento.
 
