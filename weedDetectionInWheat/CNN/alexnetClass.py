@@ -29,7 +29,6 @@ class alexnet():
         keras.layers.Conv2D(filters = 96, kernel_size = (11, 11),
                             strides = (4, 4), activation = "relu",
                             kernel_initializer = "he_normal"),
-        keras.layers.BatchNormalization(),
         keras.layers.MaxPool2D(pool_size = (3, 3), strides = (2, 2),
                             padding = "valid", data_format = None),
 
@@ -38,7 +37,6 @@ class alexnet():
         keras.layers.Conv2D(filters = 256, kernel_size = (5, 5),
                             strides = (1, 1), activation = "relu", padding = "same",
                             kernel_initializer = "he_normal"),
-        keras.layers.BatchNormalization(),
         keras.layers.MaxPool2D(pool_size = (3, 3), strides = (2, 2), 
                             padding = "valid", data_format = None),
 
@@ -47,21 +45,18 @@ class alexnet():
         keras.layers.Conv2D(filters = 384, kernel_size = (3, 3),
                             strides = (1, 1), activation = "relu", padding = "same",
                             kernel_initializer = "he_normal"),
-        keras.layers.BatchNormalization(),
 
         # Cuarta capa convolucional de 384 Kernels (1, 1)
 
         keras.layers.Conv2D(filters = 384, kernel_size = (1, 1),
                             strides = (1, 1), activation = "relu", padding = "same",
                             kernel_initializer = "he_normal"),
-        keras.layers.BatchNormalization(),
 
         # Quinta capa convolucional de 256 Kernels (1, 1)
 
         keras.layers.Conv2D(filters = 256, kernel_size = (1, 1),
                             strides = (1, 1), activation = "relu", padding = "same",
                             kernel_initializer = "he_normal"),
-        keras.layers.BatchNormalization(),
         keras.layers.MaxPool2D(pool_size = (3, 3), strides = (2, 2), 
                             padding = "valid",data_format = None),
 

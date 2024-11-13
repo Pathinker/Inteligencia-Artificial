@@ -16,8 +16,8 @@ class GWO:
         self.iterMaximo = iterMaximo
         self.numeroAgentes = numeroAgentes # Número de población, soluciones a buscar en cada iteración.
         self.classWeight = classWeight # Balanceo de clases
-        self.limiteSuperior = 100
-        self.limiteInferior = -100
+        self.limiteSuperior = 1
+        self.limiteInferior = -1
 
         self.weights_structure = model.get_weights()
         self.cantidadPesos = self.obtenerCantidadPesos()
@@ -45,6 +45,16 @@ class GWO:
         self.accuracyModel = []
         self.valLossModel = []
         self.valAccuracyModel = []
+
+        self.lossBetaLog = []
+        self.accuracyBetaLog = []
+        self.valLossBetaLog = []
+        self.valAccuracyBetaLog = []
+
+        self.lossDeltaLog = []
+        self.accuracyDeltaLog = []
+        self.valLossDeltaLog = []
+        self.valAccuracyDeltaLog = []
 
         self.positions = np.zeros((numeroAgentes, self.cantidadPesos))
         self.posicionAlfa = np.zeros(self.cantidadPesos)
@@ -133,6 +143,16 @@ class GWO:
             self.lossModel.append(self.lossAlfa)
             self.valAccuracyModel.append(self.valAccuracyAlfa)
             self.valLossModel.append(self.valLossAlfa)
+
+            self.accuracyBetaLog.append(self.accuracyBeta)
+            self.lossBetaLog.append(self.lossBeta)
+            self.valAccuracyBetaLog.append(self.valAccuracyBeta)
+            self.valLossBetaLog.append(self.valLossBeta)
+
+            self.accuracyDeltaLog.append(self.accuracyDelta)
+            self.lossDeltaLog.append(self.lossDelta)
+            self.valAccuracyDeltaLog.append(self.valAccuracyDelta)
+            self.valLossDeltaLog.append(self.valLossDelta)
         
         self.setWeights(self.posicionAlfa)
 
@@ -142,6 +162,16 @@ class GWO:
             f.write(','.join(map(str, self.lossModel)) + '\n') 
             f.write(','.join(map(str, self.valAccuracyModel)) + '\n') 
             f.write(','.join(map(str, self.valLossModel)) + '\n')
+
+            f.write(','.join(map(str, self.accuracyBetaLog)) + '\n') 
+            f.write(','.join(map(str, self.lossBetaLog)) + '\n') 
+            f.write(','.join(map(str, self.valAccuracyBetaLog)) + '\n') 
+            f.write(','.join(map(str, self.valLossBetaLog)) + '\n')
+
+            f.write(','.join(map(str, self.accuracyDeltaLog)) + '\n') 
+            f.write(','.join(map(str, self.lossDeltaLog)) + '\n') 
+            f.write(','.join(map(str, self.valAccuracyDeltaLog)) + '\n') 
+            f.write(','.join(map(str, self.valLossDeltaLog)) + '\n')
 
         return self.model
     
