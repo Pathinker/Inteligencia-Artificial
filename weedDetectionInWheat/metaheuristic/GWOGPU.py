@@ -198,9 +198,6 @@ class GWO:
 
             a = 2 - iteracion * (2 / self.iterMaximo)
 
-            r1 = np.random.uniform(0, 1, size=(self.numeroLobos * pesos)).astype(np.float32)
-            r2 = np.random.uniform(0, 1, size=(self.numeroLobos* pesos)).astype(np.float32)
-
             posiciones = np.array(self.positions[i], dtype=np.float32)
             posicion = np.array(self.positionsLobos, dtype=np.float32)
             
@@ -212,37 +209,43 @@ class GWO:
             distanciaPosicionLobos= cuda.mem_alloc(posicion.nbytes)
             cuda.memcpy_htod(distanciaPosicionLobos, posicion)
 
-            R1GPU = cuda.mem_alloc(r1.nbytes)
-            R2GPU = cuda.mem_alloc(r2.nbytes)
-            cuda.memcpy_htod(R1GPU, r1)
-            cuda.memcpy_htod(R2GPU, r2)
-
             mod = SourceModule("""
             #define MAXLOBOS """ + str(self.numeroLobos) + """
-            __global__ void actualizar(float *posiciones, float *posicionesLobos, float *r1, float *r2, float a, int numeroPesos,
-                                        float limiteInferior, float limiteSuperior) {
+
+            __device__ float xorshift32(unsigned int seed) {
+                seed ^= seed << 13;
+                seed ^= seed >> 17;
+                seed ^= seed << 5;
+                return (seed & 0x7FFFFFFF) / float(0x7FFFFFFF); // Normalizar a rango [0, 1]
+            }
+            __global__ void actualizar(float *posiciones, float *posicionesLobos, float a, int numeroPesos,
+                                        float limiteInferior, float limiteSuperior,  unsigned int seed) {
                 int thread = blockIdx.x * blockDim.x + threadIdx.x;
                 
                 if (thread < numeroPesos) {
                                
                     float A[MAXLOBOS];
                     float C[MAXLOBOS];
-                    float distancias[MAXLOBOS];
+                    float posicionSiguiente[MAXLOBOS];
                     float solucion = 0.0;
+                    unsigned int hilo_seed = seed + thread;
                                
                     for (int i = 0; i < MAXLOBOS; i++){
+
+                        float r1 = xorshift32(hilo_seed + i);
+                        float r2 = xorshift32(hilo_seed + i + MAXLOBOS);
                                
-                        A[i] = 2 * a * r1[thread + (numeroPesos * i)] - a;
-                        C[i] = 2 * a * r2[thread + (numeroPesos * i)] - a;
-                    }
+                        A[i] = 2 * a * r1 - a;
+                        C[i] = 2 * a * r2 - a;
+                    }   
                                
                     for (int i = 0; i < MAXLOBOS; i++){
                                
                         float posicionLoboActual = posicionesLobos[thread + (numeroPesos * i)];
-                        float posicionSolucion = posiciones[thread];
+                        float posicionPresa = posiciones[thread];
 
-                        distancias[i] = fabs(C[i] * posicionLoboActual - posicionSolucion);
-                        float X = posicionesLobos[thread] - A[i] * distancias[i] ;
+                        posicionSiguiente[i] = fabs(C[i] * posicionLoboActual - posicionPresa);
+                        float X = posicionLoboActual - A[i] * posicionSiguiente[i];
                         solucion += X;
                     }
                                
@@ -266,10 +269,10 @@ class GWO:
             actualizar_posiciones = mod.get_function("actualizar")
             block = 1024
             grid = (pesos + block - 1) // block
+            seed = np.uint32(int(time.time() * 1000) % (2**32))
 
-            actualizar_posiciones(distanciaPosiciones, distanciaPosicionLobos, R1GPU, R2GPU,
-                                np.float32(a), np.int32(pesos), np.float32(self.limiteInferior), 
-                                np.float32(self.limiteSuperior), block=(block, 1, 1), grid=(grid, 1))
+            actualizar_posiciones(distanciaPosiciones, distanciaPosicionLobos, np.float32(a), np.int32(pesos), np.float32(self.limiteInferior), 
+                                np.float32(self.limiteSuperior), seed, block=(block, 1, 1), grid=(grid, 1))
 
             # Recuperamos los datos desde la GPU
             cuda.memcpy_dtoh(posiciones, distanciaPosiciones)
