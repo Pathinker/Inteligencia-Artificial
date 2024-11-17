@@ -17,8 +17,8 @@ class GWO:
         self.numeroAgentes = numeroAgentes # Número de población, soluciones a buscar en cada iteración.
         self.numeroLobos = numeroLobos
         self.classWeight = classWeight # Balanceo de clases
-        self.limiteSuperior = 1
-        self.limiteInferior = -1
+        self.limiteSuperior = 1000
+        self.limiteInferior = -10
 
         self.weights_structure = model.get_weights()
         self.cantidadPesos = self.obtenerCantidadPesos()

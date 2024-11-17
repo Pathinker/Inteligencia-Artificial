@@ -11,23 +11,17 @@ import matplotlib.pyplot as plt
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from weedDetectionInWheat.CNN.alexnetClass import alexnet
-#from weedDetectionInWheat.metaheuristic.ADSCFGWO import ADSCFGWO
-#from weedDetectionInWheat.metaheuristic.ADSCFGWOclassWeight import ADSCFGWO
-#from weedDetectionInWheat.metaheuristic.GWO2 import GWO
 from weedDetectionInWheat.metaheuristic.GWOGPU import GWO
 
-# Cargar el set de datos
 direccionDataset = Path("weedDetectionInWheat/Dataset")
 direccionEntrenamiento = direccionDataset / "train/"
 direccionValidamiento = direccionDataset / "valid/"
 
-# Especificar las dimensiones de las imágenes y el tamaño de lotes
 anchoImagen = 227
 largoImagen = 227
 imgSize = [anchoImagen, largoImagen]
 batchSize = 32 
 
-# Crear los dataframes de entrenamiento y validación
 trainDataFrame = tf.keras.utils.image_dataset_from_directory(
     direccionEntrenamiento,
     seed=123,
