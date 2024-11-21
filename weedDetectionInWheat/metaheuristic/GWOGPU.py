@@ -8,7 +8,7 @@ import pycuda.driver as cuda  # type: ignore
 from pycuda.compiler import SourceModule # type: ignore
 
 class GWO:
-    def __init__(self, model, iterMaximo=10, numeroAgentes = 5,  numeroLobos = 5, classWeight = None):
+    def __init__(self, model, iterMaximo=10, numeroAgentes = 5,  numeroLobos = 5, classWeight = None, transferLearning = None):
 
         # Hiperparametros del constructor
 
@@ -17,8 +17,9 @@ class GWO:
         self.numeroAgentes = numeroAgentes # Número de población, soluciones a buscar en cada iteración.
         self.numeroLobos = numeroLobos
         self.classWeight = classWeight # Balanceo de clases
-        self.limiteSuperior = 1000
-        self.limiteInferior = -10
+        self.transferLearning = transferLearning
+        self.limiteSuperior = 1
+        self.limiteInferior = -1
 
         self.weights_structure = model.get_weights()
         self.cantidadPesos = self.obtenerCantidadPesos()
@@ -50,12 +51,16 @@ class GWO:
         self.positions = np.zeros((numeroAgentes, self.cantidadPesos))
         self.positionsLobos = np.zeros((self.numeroLobos, self.cantidadPesos))
 
-        # Obtener los pesos iniciales del modelo con el objetivo de obtener su estructura
+        if(transferLearning is None):
 
-        for i in range(self.numeroAgentes):
+            for i in range(self.numeroAgentes):
 
-            self.positions[i] = self.asignarPosicion()
+                self.positions[i] = self.asignarPosicion()
         
+        else:
+
+            self.asignarLearning()
+
         self.setWeights(self.positions[0])
 
     def obtenerCantidadPesos(self):
@@ -80,7 +85,72 @@ class GWO:
             pocisionRandom.append(random_weights.flatten())
 
         return np.concatenate(pocisionRandom)
-    
+
+    def asignarLearning(self):
+
+        self.transferLearning= self.model.get_weights()
+        flattenedWeights = np.concatenate([weight.flatten() for weight in self.transferLearning])
+        self.transferLearning = flattenedWeights
+
+        for i in range(self.numeroAgentes):
+
+            tiempoInicial = time.time()
+            pesos = len(self.transferLearning)
+
+            posiciones = np.array(self.positions[i], dtype=np.float32)
+            transferLearning = np.array(self.transferLearning, dtype=np.float32)
+
+            distanciaPosiciones = cuda.mem_alloc(posiciones.nbytes)
+            cuda.memcpy_htod(distanciaPosiciones, posiciones)
+
+            transferLearning = cuda.mem_alloc(self.transferLearning.nbytes)
+            cuda.memcpy_htod(transferLearning, self.transferLearning)
+
+            mod = SourceModule("""
+
+            __device__ float xorshift32(unsigned int seed) {
+                seed ^= seed << 13;
+                seed ^= seed >> 17;
+                seed ^= seed << 5;
+                return (seed & 0x7FFFFFFF) / float(0x7FFFFFFF); // Normalizar a rango [0, 1]
+            }
+            __global__ void actualizar(float *posiciones, float *transferLearning, int numeroPesos,
+                                        float limiteInferior, float limiteSuperior,  unsigned int seed) {
+                int thread = blockIdx.x * blockDim.x + threadIdx.x;
+                
+                if (thread < numeroPesos) {
+                               
+                    unsigned int hilo_seed = seed + thread;
+                    float random = xorshift32(hilo_seed);
+            
+                    posiciones[thread] = transferLearning[thread] * random;
+                               
+                    if(posiciones[thread] < limiteInferior){
+
+                        posiciones[thread] = limiteInferior;            
+                    }
+                    else if(posiciones[thread] > limiteSuperior){
+                               
+                        posiciones[thread] = limiteSuperior;
+                    }               
+                }
+            }
+            """)
+
+            actualizar_posiciones = mod.get_function("actualizar")
+            block = 1024
+            grid = (pesos + block - 1) // block
+            seed = np.uint32(int(time.time() * 1000) % (2**32))
+
+            actualizar_posiciones(distanciaPosiciones, transferLearning, np.int32(pesos), np.float32(self.limiteInferior), 
+                                np.float32(self.limiteSuperior), seed, block=(block, 1, 1), grid=(grid, 1))
+
+            cuda.memcpy_dtoh(posiciones, distanciaPosiciones)
+            self.positions[i] = posiciones
+
+            tiempoFinal = time.time()
+            print(f"Inicialización {i + 1} / {self.numeroAgentes} tiempo de ejecución: {tiempoFinal - tiempoInicial} segundos")
+
     def setWeights(self, weights):
 
         new_weights = []

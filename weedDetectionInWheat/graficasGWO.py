@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-datos = np.loadtxt("weedDetectionInWheat/CNN/MetaheuristicReport1350.txt", delimiter=",")
+datos = np.loadtxt("weedDetectionInWheat/CNN/MetaheuristicReport.txt", delimiter=",")
 
 epochs = []
 
@@ -28,7 +28,7 @@ plt.ylabel("Error")
 plt.legend()
 plt.show()
 
-model = tf.keras.models.load_model('weedDetectionInWheat/CNN/alexnetMetaheuristic1350.keras')
+model = tf.keras.models.load_model('weedDetectionInWheat/CNN/alexnetMetaheuristic.keras')
 
 weights = model.get_weights()
 flattenedWeights = np.concatenate([weight.flatten() for weight in weights])

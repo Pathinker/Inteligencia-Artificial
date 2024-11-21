@@ -2,15 +2,18 @@ import sys
 import os
 import tensorflow as tf
 from tensorflow import keras
+from tensorflow.keras.models import load_model # type: ignore
+from tensorflow.keras.models import Model # type: ignore
+from tensorflow.keras.layers import Input # type: ignore
 import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
+from sklearn.utils.class_weight import compute_class_weight # type: ignore
 
 # Añadir la carpeta necesaria para importaqr la clase alexnet
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from weedDetectionInWheat.CNN.alexnetClass import alexnet
 from weedDetectionInWheat.metaheuristic.GWOGPU import GWO
 
 direccionDataset = Path("weedDetectionInWheat/Dataset")
@@ -38,6 +41,21 @@ validacionDataFrame = tf.keras.utils.image_dataset_from_directory(
     label_mode="binary"
 )
 
+etiquetasDataset = np.concatenate([y for x, y in trainDataFrame], axis = 0)
+
+etiquetasDataset = etiquetasDataset.flatten()
+
+pesosClases = compute_class_weight(class_weight = "balanced",
+                                   classes = np.unique(etiquetasDataset),
+                                   y = etiquetasDataset)
+
+pesosClasesDiccionario = {}
+
+clasesUnicas = np.unique(etiquetasDataset)
+
+for i in range(len(clasesUnicas)):
+    pesosClasesDiccionario[int(clasesUnicas[i])] = float(pesosClases[i])
+
 dataArgumentation = tf.keras.Sequential([
 
     # Transformaciones Geometricas
@@ -58,24 +76,12 @@ def procesarImagen(x, y):
 
     return dataArgumentation(x), y
 
-# Modificar el dataset.
-
 dataArgumentationTrain = trainDataFrame.map(procesarImagen)
 
-# Construir el modelo AlexNet
-CNN = alexnet(trainDataFrame, validacionDataFrame)
-arquitecturaCNN = CNN.obtenerModelo()
-pesosClases = CNN.obtenerPesosClases()
-
-# Compilar y entrenar el modelo
-arquitecturaCNN.compile(
-    loss='binary_crossentropy',
-    optimizer=tf.keras.optimizers.Adam(0.001),
-    metrics=['accuracy'],
-)
+alexnet = keras.models.load_model("weedDetectionInWheat/CNN/alexnet.keras")
 
 # Inicializar GWO con la estructura de los pesos del modelo
-gwo = GWO(model=arquitecturaCNN, iterMaximo=60, numeroAgentes= 10, numeroLobos = 10, classWeight = pesosClases)
+gwo = GWO(model=alexnet, iterMaximo=60, numeroAgentes= 10, numeroLobos = 10, classWeight = pesosClasesDiccionario, transferLearning = True)
 
 # Optimizar con GWO
 arquitecturaCNN = gwo.optimize(dataArgumentationTrain, validacionDataFrame)
