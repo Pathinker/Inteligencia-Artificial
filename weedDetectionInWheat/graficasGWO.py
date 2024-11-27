@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-datos = np.loadtxt("weedDetectionInWheat/CNN/MetaheuristicReport.txt", delimiter=",")
+datos = np.loadtxt("weedDetectionInWheat/CNN/MetaheuristicReportTransfer.txt", delimiter=",")
 
 epochs = []
 
@@ -28,7 +28,8 @@ plt.ylabel("Error")
 plt.legend()
 plt.show()
 
-model = tf.keras.models.load_model('weedDetectionInWheat/CNN/alexnetMetaheuristic.keras')
+model = tf.keras.models.load_model('weedDetectionInWheat/CNN/alexnetMetaheuristicTransfer.keras')
+model.summary()
 
 weights = model.get_weights()
 flattenedWeights = np.concatenate([weight.flatten() for weight in weights])
@@ -39,21 +40,21 @@ stdDeviation = np.std(flattenedWeights)
 maxValue = np.max(flattenedWeights)
 minValue = np.min(flattenedWeights)
 
-print(f"Mean: {meanValue}")
-print(f"Variance: {variance}")
-print(f"Standard Deviation: {stdDeviation}")
-print(f"Max Value: {maxValue}")
-print(f"Min Value: {minValue}")
+print(f"Promedio: {meanValue}")
+print(f"Varianza: {variance}")
+print(f"Desviación Estandar: {stdDeviation}")
+print(f"Valor Máximo: {maxValue}")
+print(f"Valor Minimo: {minValue}")
 
 plt.figure(figsize=(10, 6))
 plt.boxplot(flattenedWeights, vert=False)
-plt.title("Box Plot of Weights")
-plt.xlabel("Weight Value")
+plt.title("Diagrama de caja pesos")
+plt.xlabel("Valor de los pesos")
 plt.show()
 
 plt.figure(figsize=(10, 6))
 plt.hist(flattenedWeights, bins=100, color='skyblue', edgecolor='black')
-plt.title("Weights Histogram")
-plt.xlabel("Weight Value")
-plt.ylabel("Frequency")
+plt.title("Histograma de los pesos")
+plt.xlabel("Valor de los pesos")
+plt.ylabel("Frecuencia")
 plt.show()

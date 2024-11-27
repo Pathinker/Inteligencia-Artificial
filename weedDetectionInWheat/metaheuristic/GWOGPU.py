@@ -112,7 +112,7 @@ class GWO:
                 seed ^= seed << 13;
                 seed ^= seed >> 17;
                 seed ^= seed << 5;
-                return (seed & 0x7FFFFFFF) / float(0x7FFFFFFF); // Normalizar a rango [0, 1]
+                return (seed & 0x7FFFFFFF) / float(0x7FFFFFFF) * 2;
             }
             __global__ void actualizar(float *posiciones, float *transferLearning, int numeroPesos,
                                         float limiteInferior, float limiteSuperior,  unsigned int seed) {

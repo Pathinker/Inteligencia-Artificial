@@ -4,6 +4,7 @@ import numpy as np
 from pathlib import Path
 from sklearn.utils.class_weight import compute_class_weight # type: ignore
 from tensorflow.keras.models import load_model # type: ignore
+from tensorflow.keras import regularizers # type: ignore
 
 # Cargar el set de datos.
 
@@ -97,7 +98,9 @@ alexnet = keras.models.Sequential([
 
     keras.layers.Conv2D(filters = 96, kernel_size = (11, 11),
                         strides = (4, 4), activation = "relu",
-                        kernel_initializer = "he_normal"),
+                        kernel_initializer = "he_normal",
+                        kernel_regularizer = regularizers.l2(0.01)),
+    keras.layers.BatchNormalization(),
     keras.layers.MaxPool2D(pool_size = (3, 3), strides = (2, 2),
                            padding = "valid", data_format = None),
 
@@ -105,7 +108,9 @@ alexnet = keras.models.Sequential([
 
     keras.layers.Conv2D(filters = 256, kernel_size = (5, 5),
                         strides = (1, 1), activation = "relu", padding = "same",
-                        kernel_initializer = "he_normal"),
+                        kernel_initializer = "he_normal",
+                        kernel_regularizer=regularizers.l2(0.01)),
+    keras.layers.BatchNormalization(),
     keras.layers.MaxPool2D(pool_size = (3, 3), strides = (2, 2), 
                            padding = "valid", data_format = None),
 
@@ -113,28 +118,34 @@ alexnet = keras.models.Sequential([
 
     keras.layers.Conv2D(filters = 384, kernel_size = (3, 3),
                         strides = (1, 1), activation = "relu", padding = "same",
-                        kernel_initializer = "he_normal"),
+                        kernel_initializer = "he_normal",
+                        kernel_regularizer=regularizers.l2(0.01)),
+    keras.layers.BatchNormalization(),
 
     # Cuarta capa convolucional de 384 Kernels (1, 1)
 
     keras.layers.Conv2D(filters = 384, kernel_size = (1, 1),
                         strides = (1, 1), activation = "relu", padding = "same",
-                        kernel_initializer = "he_normal"),
+                        kernel_initializer = "he_normal",
+                        kernel_regularizer=regularizers.l2(0.01)),
+    keras.layers.BatchNormalization(),
 
     # Quinta capa convolucional de 256 Kernels (1, 1)
 
     keras.layers.Conv2D(filters = 256, kernel_size = (1, 1),
                         strides = (1, 1), activation = "relu", padding = "same",
-                        kernel_initializer = "he_normal"),
+                        kernel_initializer = "he_normal",
+                        kernel_regularizer=regularizers.l2(0.01)),
+    keras.layers.BatchNormalization(),
     keras.layers.MaxPool2D(pool_size = (3, 3), strides = (2, 2), 
                            padding = "valid",data_format = None),
 
     keras.layers.Flatten(),
-    keras.layers.Dense(4096, activation = "relu"),
+    keras.layers.Dense(4096, activation = "relu", kernel_regularizer=regularizers.l2(0.01)),
     keras.layers.Dropout(0.5),
-    keras.layers.Dense(4096, activation = "relu"),
+    keras.layers.Dense(4096, activation = "relu", kernel_regularizer=regularizers.l2(0.01)),
     keras.layers.Dropout(0.5),
-    keras.layers.Dense(1000, activation = "relu"),
+    keras.layers.Dense(1000, activation = "relu", kernel_regularizer=regularizers.l2(0.01)),
     keras.layers.Dense(1, activation = "sigmoid") # Cambiamos la última capa de salida por una neurona y la función de activación sigmoid.
     
 ])
@@ -160,7 +171,7 @@ history=alexnet.fit(
 
 alexnet.evaluate(validacionDataFrame, verbose = 1)
 
-alexnet.save('weedDetectionInWheat/CNN/alexnet.keras') 
+alexnet.save('weedDetectionInWheat/CNN/alexnetNormalized.keras') 
 
 # Mostrar los datos relativos al entrenamiento.
 

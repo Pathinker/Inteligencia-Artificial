@@ -78,7 +78,9 @@ def procesarImagen(x, y):
 
 dataArgumentationTrain = trainDataFrame.map(procesarImagen)
 
-alexnet = keras.models.load_model("weedDetectionInWheat/CNN/alexnet.keras")
+alexnet = keras.models.load_model("weedDetectionInWheat/CNN/alexnetNormalized.keras")
+
+alexnet.summary()
 
 # Inicializar GWO con la estructura de los pesos del modelo
 gwo = GWO(model=alexnet, iterMaximo=60, numeroAgentes= 10, numeroLobos = 10, classWeight = pesosClasesDiccionario, transferLearning = True)
