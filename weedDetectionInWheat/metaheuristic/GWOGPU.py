@@ -3,6 +3,8 @@ import tensorflow as tf
 from tqdm import tqdm
 import time
 
+from tensorflow.keras.layers import Layer, Flatten, Dense, Input
+from tensorflow.keras.models import load_model, Model
 import pycuda.autoinit # type: ignore
 import pycuda.driver as cuda  # type: ignore
 from pycuda.compiler import SourceModule # type: ignore
@@ -22,9 +24,9 @@ class GWO:
         self.limiteInferior = -1
 
         self.features = None
-        self.numberFeatures = None
+        self.numberFeatures = None # Numero de Features que selecciono cada lobo.
         self.weights_structure = None
-        self.cantidadPesos = None
+        self.cantidadPesos = 1
 
         if(featureSelection is None):
 
@@ -35,8 +37,15 @@ class GWO:
         else:
 
             self.features = self.model.get_layer(featureSelection)
-            pesos = self.features.get_weights()
-            self.cantidadPesos = np.uint32(pesos[0].size)
+            self.inputFeatures = self.features.get_build_config()
+            self.inputShape = self.inputFeatures["input_shape"]
+            pesos = [dim for dim in self.inputShape if dim is not None]
+
+            for valor in pesos:
+
+                self.cantidadPesos *= valor
+
+            self.cantidadPesos = np.uint32(self.cantidadPesos)
             self.numberFeatures = np.zeros((self.numeroLobos))
 
         # Variables GWO
@@ -67,6 +76,8 @@ class GWO:
 
         if(featureSelection is not None):
 
+            self.modificarModelo()
+
             return
 
         elif(transferLearning is None):
@@ -92,6 +103,19 @@ class GWO:
 
         return pesosTotales
 
+    def setWeights(self, weights):
+
+        new_weights = []
+        idx = 0
+        for w in self.weights_structure:
+            
+            shape = w.shape
+            size = np.prod(shape)
+            new_weights.append(np.array(weights[idx:idx + size]).reshape(w.shape)) # Asignar a la forma original
+            idx += size
+
+        self.model.set_weights(new_weights)
+
     def asignarPosicion(self): # Generar una matriz con todos los pesos a optimizar de la red.
 
         pocisionRandom = []
@@ -103,6 +127,30 @@ class GWO:
             pocisionRandom.append(random_weights.flatten())
 
         return np.concatenate(pocisionRandom)
+
+    def modificarModelo(self):
+
+        class MaskLayer(Layer):
+            def __init__(self, mask=None, **kwargs):
+                super(MaskLayer, self).__init__(**kwargs)
+                self.mask = tf.Variable(initial_value=tf.constant(mask, dtype=tf.float32), trainable=False)
+            
+            def call(self, inputs):
+                return inputs * self.mask 
+            
+            def set_mask(self, new_mask):
+                self.mask.assign(new_mask)
+
+        capasEntrada = self.model.get_layer("conv2d")
+
+        mascaraInicial = [1] * self.cantidadPesos
+        entrada = Input(shape=(self.cantidadPesos,)) 
+        mascaraLayer = MaskLayer(mask=mascaraInicial)(entrada)
+
+        capaSalida = self.model.get_layer('dense')(mascaraLayer)
+
+        custom_model = Model(inputs=capasEntrada, outputs=capaSalida)
+        custom_model.summary()
 
     def asignarLearning(self):
 
@@ -168,19 +216,6 @@ class GWO:
 
             tiempoFinal = time.time()
             print(f"Inicialización {i + 1} / {self.numeroAgentes} tiempo de ejecución: {tiempoFinal - tiempoInicial} segundos")
-
-    def setWeights(self, weights):
-
-        new_weights = []
-        idx = 0
-        for w in self.weights_structure:
-            
-            shape = w.shape
-            size = np.prod(shape)
-            new_weights.append(np.array(weights[idx:idx + size]).reshape(w.shape)) # Asignar a la forma original
-            idx += size
-
-        self.model.set_weights(new_weights)
 
     def calcularPerdidaConPesos(self, dataset, classWeight):
 
