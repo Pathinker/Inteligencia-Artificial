@@ -1,10 +1,12 @@
 import numpy as np
-import tensorflow as tf
 from tqdm import tqdm
 import time
 
+import tensorflow as tf
+from tensorflow import keras
 from tensorflow.keras.layers import Layer, Flatten, Dense, Input
 from tensorflow.keras.models import load_model, Model
+
 import pycuda.autoinit # type: ignore
 import pycuda.driver as cuda  # type: ignore
 from pycuda.compiler import SourceModule # type: ignore
@@ -24,6 +26,7 @@ class GWO:
         self.limiteInferior = -1
 
         self.features = None
+        self.featureSelection = featureSelection
         self.numberFeatures = None # Numero de Features que selecciono cada lobo.
         self.weights_structure = None
         self.cantidadPesos = 1
@@ -46,7 +49,6 @@ class GWO:
                 self.cantidadPesos *= valor
 
             self.cantidadPesos = np.uint32(self.cantidadPesos)
-            self.numberFeatures = np.zeros((self.numeroLobos))
 
         # Variables GWO
 
@@ -60,11 +62,13 @@ class GWO:
         self.accuracy = []
         self.valLoss = np.full(self.numeroLobos, np.finfo(np.float64).max)
         self.valAccuracy = []
+        self.numberFeatures = np.zeros((self.numeroLobos))
         
         self.lossModelLog = np.zeros((self.numeroLobos, self.iterMaximo))
         self.accuracyModelLog = np.zeros((self.numeroLobos, self.iterMaximo))
         self.valLossModelLog = np.zeros((self.numeroLobos, self.iterMaximo))
         self.valAccuracyModelLog = np.zeros((self.numeroLobos, self.iterMaximo))
+        self.numberFeaturesLog = np.zeros((self.numeroLobos, self.iterMaximo))
         
         for i in range(self.numeroLobos):
 
@@ -76,7 +80,9 @@ class GWO:
 
         if(featureSelection is not None):
 
-            self.modificarModelo()
+            for i in range(self.numeroAgentes):
+
+                self.positions[i] = self.asignarSelection()
 
             return
 
@@ -128,11 +134,24 @@ class GWO:
 
         return np.concatenate(pocisionRandom)
 
-    def modificarModelo(self):
+    def asignarSelection(self):
+
+        pocisionRandom = []
+
+        for i in range(self.cantidadPesos):
+
+            random_weights = np.random.uniform(self.limiteInferior, self.limiteSuperior)
+            pocisionRandom.append(random_weights)
+
+        return np.array(pocisionRandom)
+
+    def modificarModelo(self, mascara):
 
         class MaskLayer(Layer):
-            def __init__(self, mask=None, **kwargs):
-                super(MaskLayer, self).__init__(**kwargs)
+
+            def __init__(self, mask=None, name="mask", **kwargs):
+
+                super(MaskLayer, self).__init__(name=name, **kwargs)
                 self.mask = tf.Variable(initial_value=tf.constant(mask, dtype=tf.float32), trainable=False)
             
             def call(self, inputs):
@@ -141,16 +160,40 @@ class GWO:
             def set_mask(self, new_mask):
                 self.mask.assign(new_mask)
 
-        capasEntrada = self.model.get_layer("conv2d")
+            def get_config(self):
 
-        mascaraInicial = [1] * self.cantidadPesos
-        entrada = Input(shape=(self.cantidadPesos,)) 
-        mascaraLayer = MaskLayer(mask=mascaraInicial)(entrada)
+                config = super(MaskLayer, self).get_config()
 
-        capaSalida = self.model.get_layer('dense')(mascaraLayer)
+                config.update({
+                    "mask": self.mask.numpy().tolist() if self.mask is not None else None,
+                    "name": self.name,
+                })
 
-        custom_model = Model(inputs=capasEntrada, outputs=capaSalida)
-        custom_model.summary()
+                return config
+
+        capasEntrada = self.model.get_layer("conv2d").input
+        capasSalida = self.model.get_layer('flatten').output
+
+        mascaraLayer = MaskLayer(mask=mascara)(capasSalida)
+
+        capasSalida = mascaraLayer
+        agregarLayers = False 
+
+        for layer in self.model.layers: # Agregar las capas restantes personalizadas
+            if layer.name == 'dense':
+                agregarLayers = True
+            if agregarLayers:
+                capasSalida = layer(capasSalida)
+
+        modeloCustom = Model(inputs=capasEntrada, outputs=capasSalida)
+
+        modeloCustom.compile(
+            loss='binary_crossentropy',
+            optimizer=tf.keras.optimizers.Adam(0.001),
+            metrics=['accuracy'],
+        )
+
+        self.model = modeloCustom
 
     def asignarLearning(self):
 
@@ -271,8 +314,8 @@ class GWO:
         
         loss = alfa * loss + beta * (self.numberFeatures[iteracion] / self.cantidadPesos)
 
-        print(f"loss: {loss/total}, Accuracy = {accuracy / total}")
-        return (loss / total), (accuracy / total)        
+        print(f"Loss: {loss/total}, Accuracy: {accuracy / total}, Features = {self.numberFeatures[iteracion]}")
+        return (loss / total), (accuracy / total), self.numberFeatures[iteracion]
 
     def optimize(self, datasetEntrenamiento, datasetEvaluacion):
 
@@ -304,11 +347,12 @@ class GWO:
                 self.accuracyModelLog[i][epoch] = self.accuracy[i]
                 self.lossModelLog[i][epoch] = self.loss[i]
                 self.valAccuracyModelLog[i][epoch] = self.valAccuracy[i]
-                self.valLossModelLog[i][epoch] = self.valLoss[i]            
+                self.valLossModelLog[i][epoch] = self.valLoss[i] 
+                self.numberFeaturesLog[i][epoch] = self.numberFeatures[i]           
 
-            self.setWeights(self.positionsLobos[0])
-            self.escribirReporte()
-            return self.model
+        self.modificarModelo(self.positionsLobos[0])
+        self.escribirReporte()
+        return self.model
     
     def GWOExploracion(self, datasetEntrenamiento, datasetEvaluacion, iteracion):
 
@@ -338,9 +382,9 @@ class GWO:
 
             print(f"Exploración Epoch {iteracion + 1} / {self.iterMaximo} (Agente {n + 1} / {self.numeroAgentes})| Entrenamiento | Validación: ")
 
-            self.features.set_weights(self.positions[n])
+            self.modificarModelo(self.positions[n])
         
-            loss, accuracy = self.calcularPerdidaFeatures(datasetEntrenamiento, self.classWeight)
+            loss, accuracy, numberFeatures = self.calcularPerdidaFeatures(datasetEntrenamiento, self.classWeight, n)
             valLoss, valAccuracy = self.model.evaluate(datasetEvaluacion, verbose=1)    
 
             for i in range(self.numeroLobos):
@@ -348,14 +392,14 @@ class GWO:
                 if(loss < self.loss[i]):
 
                     print(f"Actualizacion {self.nombreLobos[i]}")
-                    self.actualizarLobos(loss, accuracy, valLoss, valAccuracy, np.ravel(self.positions[n, :].copy()), i)
+                    self.actualizarLobos(loss, accuracy, valLoss, valAccuracy, numberFeatures, np.ravel(self.positions[n, :].copy()), i)
                     break
             
             for i in range(self.numeroLobos):
 
-                print(f"{self.nombreLobos[i]} -> Perdida: {self.loss[i]}, Accuracy: {self.accuracy[i]}, valLoss: {self.valLoss[i]}, valAccuracy: {self.valAccuracy[i]}")
+                print(f"{self.nombreLobos[i]} -> Perdida: {self.loss[i]}, Accuracy: {self.accuracy[i]}, valLoss: {self.valLoss[i]}, valAccuracy: {self.valAccuracy[i]}, Features: {self.numberFeatures[i]}")
         
-    def actualizarLobos(self, loss, accuracy, valLoss, valAccuracy, posiciones, lobo):
+    def actualizarLobos(self, loss, accuracy, valLoss, valAccuracy, numberFeatures, posiciones, lobo):
 
         for i in range(self.numeroLobos - 1, lobo - 1, -1):
 
@@ -365,6 +409,7 @@ class GWO:
                 self.accuracy[i] = accuracy
                 self.valLoss[i] = valLoss
                 self.valAccuracy[i] = valAccuracy
+                self.numberFeatures[i] = numberFeatures
                 self.positionsLobos[i] = posiciones
             
             else:
@@ -373,6 +418,7 @@ class GWO:
                 self.accuracy[i] = self.accuracy[i - 1]
                 self.valLoss[i] = self.valLoss[i - 1]
                 self.valAccuracy[i] = self.valAccuracy[i - 1] 
+                self.numberFeatures[i] = self.numberFeatures[i - 1]
                 self.positionsLobos[i] = self.positionsLobos[i - 1]     
 
     def escribirReporte(self):
@@ -385,7 +431,11 @@ class GWO:
                 f.write(','.join(map(str, self.lossModelLog[i])) + '\n') 
                 f.write(','.join(map(str, self.valAccuracyModelLog[i])) + '\n') 
                 f.write(','.join(map(str, self.valLossModelLog[i])) + '\n')
- 
+
+                if(self.featureSelection is not None):
+
+                    f.write(','.join(map(str, self.numberFeaturesLog[i])) + '\n')
+
     def GWOExplotacion(self, iteracion):
 
         for i in range(self.numeroAgentes):
@@ -487,7 +537,7 @@ class GWO:
 
                 a = 2 - iteracion * (2 / self.iterMaximo)
 
-                posiciones = np.array(self.features[i], dtype=np.float32)
+                posiciones = np.array(self.positions[i], dtype=np.float32)
                 posicion = np.array(self.positionsLobos, dtype=np.float32)
                 
                 # Alojar en  GPU
@@ -539,15 +589,14 @@ class GWO:
                         }
                                 
                         solucion /= MAXLOBOS;
-                        posiciones[thread] = 1 / (1 + exp(-nueva_posicion));
+                        posiciones[thread] = 1 / (1 + exp(-solucion));
         
                         if (posiciones[thread] < 0.5) {
                             posiciones[thread] = 0;
                         } 
                         else {
                             posiciones[thread] = 1;
-                        }
-                                         
+                        }                
                     }
                 }
                 """)
@@ -562,12 +611,12 @@ class GWO:
 
                 # Recuperamos los datos desde la GPU
                 cuda.memcpy_dtoh(posiciones, distanciaPosiciones)
-                self.features[i] = posiciones
+                self.positions[i] = posiciones
 
                 numeroFeatures = 0
 
-                for i in self.features[i]:
-                    if(i == 1):
+                for feature in self.positions[i]:
+                    if(feature == 1):
                         numeroFeatures += 1
 
                 self.numberFeatures[i] = numeroFeatures
