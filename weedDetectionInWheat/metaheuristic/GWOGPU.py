@@ -62,7 +62,6 @@ class GWO:
         self.accuracy = []
         self.valLoss = np.full(self.numeroLobos, np.finfo(np.float64).max)
         self.valAccuracy = []
-        self.numberFeatures = np.zeros((self.numeroLobos))
         
         self.lossModelLog = np.zeros((self.numeroLobos, self.iterMaximo))
         self.accuracyModelLog = np.zeros((self.numeroLobos, self.iterMaximo))
@@ -76,7 +75,9 @@ class GWO:
             self.valAccuracy.append(0.0)
 
         self.positions = np.zeros((numeroAgentes, self.cantidadPesos))
+        self.numberFeatures = np.zeros((numeroAgentes))
         self.positionsLobos = np.zeros((self.numeroLobos, self.cantidadPesos))
+        self.numberFeaturesLobos = np.zeros((self.numeroLobos))
 
         if(featureSelection is not None):
 
@@ -348,7 +349,7 @@ class GWO:
                 self.lossModelLog[i][epoch] = self.loss[i]
                 self.valAccuracyModelLog[i][epoch] = self.valAccuracy[i]
                 self.valLossModelLog[i][epoch] = self.valLoss[i] 
-                self.numberFeaturesLog[i][epoch] = self.numberFeatures[i]           
+                self.numberFeaturesLog[i][epoch] = self.numberFeaturesLobos[i]           
 
         self.modificarModelo(self.positionsLobos[0])
         self.escribirReporte()
@@ -409,7 +410,7 @@ class GWO:
                 self.accuracy[i] = accuracy
                 self.valLoss[i] = valLoss
                 self.valAccuracy[i] = valAccuracy
-                self.numberFeatures[i] = numberFeatures
+                self.numberFeaturesLobos[i] = numberFeatures
                 self.positionsLobos[i] = posiciones
             
             else:
@@ -418,7 +419,7 @@ class GWO:
                 self.accuracy[i] = self.accuracy[i - 1]
                 self.valLoss[i] = self.valLoss[i - 1]
                 self.valAccuracy[i] = self.valAccuracy[i - 1] 
-                self.numberFeatures[i] = self.numberFeatures[i - 1]
+                self.numberFeaturesLobos[i] = self.numberFeaturesLobos[i - 1]
                 self.positionsLobos[i] = self.positionsLobos[i - 1]     
 
     def escribirReporte(self):

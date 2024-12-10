@@ -28,7 +28,7 @@ plt.ylabel("Error")
 plt.legend()
 plt.show()
 
-model = tf.keras.models.load_model('weedDetectionInWheat/CNN/alexnetNormalized.keras')
+model = tf.keras.models.load_model('weedDetectionInWheat/CNN/alexnetNormalized2.keras')
 model.summary()
 
 weights = model.get_weights()
