@@ -18,18 +18,24 @@ class GWO:
 
         self.model = model
         self.iterMaximo = iterMaximo
-        self.numeroAgentes = numeroAgentes # Número de población, soluciones a buscar en cada iteración.
+        self.numeroAgentes = numeroAgentes
         self.numeroLobos = numeroLobos
-        self.classWeight = classWeight # Balanceo de clases
+        self.classWeight = classWeight
         self.transferLearning = transferLearning
         self.limiteSuperior = 1
         self.limiteInferior = -1
 
         self.features = None
         self.featureSelection = featureSelection
-        self.numberFeatures = None # Numero de Features que selecciono cada lobo.
+        self.numberFeatures = None
         self.weights_structure = None
-        self.cantidadPesos = 1
+        self.cantidadPesos = None
+
+        self.nombreLobos = {0 : "Alfa", 1 : "Beta", 2: "Delta"}
+
+        for i in range(self.numeroLobos - 3):
+
+            self.nombreLobos[i + 3] = (f"Omega {i + 1}")
 
         if(featureSelection is None):
 
@@ -44,24 +50,24 @@ class GWO:
             self.inputShape = self.inputFeatures["input_shape"]
             pesos = [dim for dim in self.inputShape if dim is not None]
 
+            self.cantidadPesos = 1
+
             for valor in pesos:
 
                 self.cantidadPesos *= valor
 
             self.cantidadPesos = np.uint32(self.cantidadPesos)
 
-        # Variables GWO
-
-        self.nombreLobos = {0 : "Alfa", 1 : "Beta", 2: "Delta"}
-
-        for i in range(self.numeroLobos - 3):
-
-            self.nombreLobos[i + 3] = (f"Omega {i + 1}")
+        self.positions = np.zeros((numeroAgentes, self.cantidadPesos))
+        self.positionsNoRound = np.zeros((self.numeroLobos, self.cantidadPesos))
+        self.numberFeatures = np.zeros((numeroAgentes))
+        self.positionsLobos = np.zeros((self.numeroLobos, self.cantidadPesos))
+        self.numberFeaturesLobos = np.zeros((self.numeroLobos))
 
         self.loss = np.full(self.numeroLobos, np.finfo(np.float64).max)
-        self.accuracy = []
+        self.accuracy = np.zeros((self.numeroLobos))
         self.valLoss = np.full(self.numeroLobos, np.finfo(np.float64).max)
-        self.valAccuracy = []
+        self.valAccuracy = np.zeros((self.numeroLobos))
         
         self.lossModelLog = np.zeros((self.numeroLobos, self.iterMaximo))
         self.accuracyModelLog = np.zeros((self.numeroLobos, self.iterMaximo))
@@ -69,16 +75,6 @@ class GWO:
         self.valAccuracyModelLog = np.zeros((self.numeroLobos, self.iterMaximo))
         self.numberFeaturesLog = np.zeros((self.numeroLobos, self.iterMaximo))
         
-        for i in range(self.numeroLobos):
-
-            self.accuracy.append(0.0)
-            self.valAccuracy.append(0.0)
-
-        self.positions = np.zeros((numeroAgentes, self.cantidadPesos))
-        self.numberFeatures = np.zeros((numeroAgentes))
-        self.positionsLobos = np.zeros((self.numeroLobos, self.cantidadPesos))
-        self.numberFeaturesLobos = np.zeros((self.numeroLobos))
-
         if(featureSelection is not None):
 
             for i in range(self.numeroAgentes):
@@ -398,7 +394,7 @@ class GWO:
             
             for i in range(self.numeroLobos):
 
-                print(f"{self.nombreLobos[i]} -> Perdida: {self.loss[i]}, Accuracy: {self.accuracy[i]}, valLoss: {self.valLoss[i]}, valAccuracy: {self.valAccuracy[i]}, Features: {self.numberFeatures[i]}")
+                print(f"{self.nombreLobos[i]} -> Perdida: {self.loss[i]}, Accuracy: {self.accuracy[i]}, valLoss: {self.valLoss[i]}, valAccuracy: {self.valAccuracy[i]}, Features: {self.numberFeaturesLobos[i]}")
         
     def actualizarLobos(self, loss, accuracy, valLoss, valAccuracy, numberFeatures, posiciones, lobo):
 
@@ -539,12 +535,16 @@ class GWO:
                 a = 2 - iteracion * (2 / self.iterMaximo)
 
                 posiciones = np.array(self.positions[i], dtype=np.float32)
+                posicionesNoRound = np.array(self.positions[i], dtype=np.float32)
                 posicion = np.array(self.positionsLobos, dtype=np.float32)
                 
                 # Alojar en  GPU
 
                 distanciaPosiciones = cuda.mem_alloc(posiciones.nbytes)
                 cuda.memcpy_htod(distanciaPosiciones, posiciones)
+
+                distanciaPosicionesNoRound = cuda.mem_alloc(posicionesNoRound.nbytes)
+                cuda.memcpy_htod(distanciaPosicionesNoRound, posicionesNoRound)
 
                 distanciaPosicionLobos= cuda.mem_alloc(posicion.nbytes)
                 cuda.memcpy_htod(distanciaPosicionLobos, posicion)
@@ -558,7 +558,7 @@ class GWO:
                     seed ^= seed << 5;
                     return (seed & 0x7FFFFFFF) / float(0x7FFFFFFF); // Normalizar a rango [0, 1]
                 }
-                __global__ void actualizar(float *posiciones, float *posicionesLobos, float a, int numeroPesos, unsigned int seed) {
+                __global__ void actualizar(float *posiciones, float *posicionesNoRound, float *posicionesLobos, float a, int numeroPesos, float limiteInferior, float limiteSuperior, unsigned int seed) {
 
                     int thread = blockIdx.x * blockDim.x + threadIdx.x;
                     
@@ -591,13 +591,23 @@ class GWO:
                                 
                         solucion /= MAXLOBOS;
                         posiciones[thread] = 1 / (1 + exp(-solucion));
+                        posicionesNoRound[thread] = posiciones[thread];
         
+                        if(posiciones[thread] < limiteInferior){
+
+                            posicionesNoRound[thread] = limiteInferior;            
+                        }
+                        else if(posiciones[thread] > limiteSuperior){
+                                    
+                            posicionesNoRound[thread] = limiteSuperior;
+                        }    
+
                         if (posiciones[thread] < 0.5) {
                             posiciones[thread] = 0;
                         } 
                         else {
                             posiciones[thread] = 1;
-                        }                
+                        }                     
                     }
                 }
                 """)
@@ -608,11 +618,16 @@ class GWO:
                 grid = (pesos + block - 1) // block
                 seed = np.uint32(int(time.time() * 1000) % (2**32))
 
-                actualizar_posiciones(distanciaPosiciones, distanciaPosicionLobos, np.float32(a), np.int32(pesos), seed, block=(block, 1, 1), grid=(grid, 1))
+                actualizar_posiciones(distanciaPosiciones, distanciaPosicionesNoRound, distanciaPosicionLobos, np.float32(a), np.int32(pesos), 
+                                      np.float32(self.limiteInferior),  np.float32(self.limiteSuperior), seed, block=(block, 1, 1), grid=(grid, 1))
 
                 # Recuperamos los datos desde la GPU
+
                 cuda.memcpy_dtoh(posiciones, distanciaPosiciones)
+                cuda.memcpy_dtoh(posicionesNoRound, distanciaPosicionesNoRound)
+
                 self.positions[i] = posiciones
+                self.positionsNoRound[i] = posicionesNoRound
 
                 numeroFeatures = 0
 
