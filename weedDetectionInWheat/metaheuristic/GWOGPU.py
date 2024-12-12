@@ -59,7 +59,7 @@ class GWO:
             self.cantidadPesos = np.uint32(self.cantidadPesos)
 
         self.positions = np.zeros((numeroAgentes, self.cantidadPesos))
-        self.positionsNoRound = np.zeros((self.numeroLobos, self.cantidadPesos))
+        self.positionsNoRound = np.zeros((numeroAgentes, self.cantidadPesos))
         self.numberFeatures = np.zeros((numeroAgentes))
         self.positionsLobos = np.zeros((self.numeroLobos, self.cantidadPesos))
         self.numberFeaturesLobos = np.zeros((self.numeroLobos))
@@ -289,8 +289,8 @@ class GWO:
         accuracy = 0.0
         total = 0
 
-        alfa = 0.99
-        beta = 0.01
+        alfa = 0.95
+        beta = 0.05
         
         for x, y in tqdm(dataset, desc = f"Calculando Perdida", unit="batch"):
 
@@ -347,6 +347,14 @@ class GWO:
                 self.valLossModelLog[i][epoch] = self.valLoss[i] 
                 self.numberFeaturesLog[i][epoch] = self.numberFeaturesLobos[i]           
 
+        
+        for i in range(len(self.positionsLobos[0])):
+
+            if(self.positionsLobos[0, i] > 0.5):
+                self.positionsLobos[0, i] = 1
+            else:
+                self.positionsLobos[0, i] = 0
+
         self.modificarModelo(self.positionsLobos[0])
         self.escribirReporte()
         return self.model
@@ -389,7 +397,7 @@ class GWO:
                 if(loss < self.loss[i]):
 
                     print(f"Actualizacion {self.nombreLobos[i]}")
-                    self.actualizarLobos(loss, accuracy, valLoss, valAccuracy, numberFeatures, np.ravel(self.positions[n, :].copy()), i)
+                    self.actualizarLobos(loss, accuracy, valLoss, valAccuracy, numberFeatures, np.ravel(self.positionsNoRound[n, :].copy()), i)
                     break
             
             for i in range(self.numeroLobos):
