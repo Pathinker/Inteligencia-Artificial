@@ -1,6 +1,8 @@
+import os
+import time
+import hashlib
 import numpy as np
 from tqdm import tqdm
-import time
 
 import tensorflow as tf
 from tensorflow import keras
@@ -22,8 +24,8 @@ class GWO:
         self.numeroLobos = numeroLobos
         self.classWeight = classWeight
         self.transferLearning = transferLearning
-        self.limiteSuperior = 1
-        self.limiteInferior = -1
+        self.limiteSuperior = 0.5
+        self.limiteInferior = -0.5
 
         self.features = None
         self.featureSelection = featureSelection
@@ -289,8 +291,8 @@ class GWO:
         accuracy = 0.0
         total = 0
 
-        alfa = 0.95
-        beta = 0.05
+        alfa = 0.50
+        beta = 0.50
         
         for x, y in tqdm(dataset, desc = f"Calculando Perdida", unit="batch"):
 
@@ -543,13 +545,22 @@ class GWO:
                 a = 2 - iteracion * (2 / self.iterMaximo)
 
                 posiciones = np.array(self.positions[i], dtype=np.float32)
+                perdida = np.array(self.loss, dtype=np.float32)
                 posicionesNoRound = np.array(self.positions[i], dtype=np.float32)
                 posicion = np.array(self.positionsLobos, dtype=np.float32)
+
+                perdidaTotal = sum(self.loss)
+
+                for i in range(self.numeroLobos):
+                    perdida[i] = self.loss[i] / perdidaTotal
                 
                 # Alojar en  GPU
 
                 distanciaPosiciones = cuda.mem_alloc(posiciones.nbytes)
                 cuda.memcpy_htod(distanciaPosiciones, posiciones)
+
+                perdidaNormalizada = cuda.mem_alloc(self.loss.nbytes)
+                cuda.memcpy_htod(perdidaNormalizada, perdida)
 
                 distanciaPosicionesNoRound = cuda.mem_alloc(posicionesNoRound.nbytes)
                 cuda.memcpy_htod(distanciaPosicionesNoRound, posicionesNoRound)
@@ -566,7 +577,7 @@ class GWO:
                     seed ^= seed << 5;
                     return (seed & 0x7FFFFFFF) / float(0x7FFFFFFF); // Normalizar a rango [0, 1]
                 }
-                __global__ void actualizar(float *posiciones, float *posicionesNoRound, float *posicionesLobos, float a, int numeroPesos, float limiteInferior, float limiteSuperior, unsigned int seed) {
+                __global__ void actualizar(float *posiciones, float *loss, float *posicionesNoRound, float *posicionesLobos, float a, int numeroPesos, float limiteInferior, float limiteSuperior, unsigned int seed) {
 
                     int thread = blockIdx.x * blockDim.x + threadIdx.x;
                     
@@ -580,8 +591,11 @@ class GWO:
                                 
                         for (int i = 0; i < MAXLOBOS; i++){
 
-                            float r1 = xorshift32(hilo_seed + i);
-                            float r2 = xorshift32(hilo_seed + i + MAXLOBOS);
+                            unsigned int seed1 = hilo_seed ^ (i * 2654435761U) ^ (hilo_seed >> 13);
+                            unsigned int seed2 = hilo_seed ^ ((i + MAXLOBOS) * 2246822519U) ^ (hilo_seed << 7);
+                        
+                            float r1 = xorshift32(seed1);
+                            float r2 = xorshift32(seed2);
                                 
                             A[i] = 2 * a * r1 - a;
                             C[i] = 2 * a * r2 - a;
@@ -594,6 +608,7 @@ class GWO:
 
                             posicionSiguiente[i] = fabs(C[i] * posicionLoboActual - posicionPresa);
                             float X = posicionLoboActual - A[i] * posicionSiguiente[i];
+                            X *= loss[i];
                             solucion += X;
                         }
                                 
@@ -624,9 +639,9 @@ class GWO:
                 actualizar_posiciones = mod.get_function("actualizar")
                 block = 1024
                 grid = (pesos + block - 1) // block
-                seed = np.uint32(int(time.time() * 1000) % (2**32))
+                seed = self.generarSemilla()
 
-                actualizar_posiciones(distanciaPosiciones, distanciaPosicionesNoRound, distanciaPosicionLobos, np.float32(a), np.int32(pesos), 
+                actualizar_posiciones(distanciaPosiciones, perdidaNormalizada, distanciaPosicionesNoRound, distanciaPosicionLobos, np.float32(a), np.int32(pesos), 
                                       np.float32(self.limiteInferior),  np.float32(self.limiteSuperior), seed, block=(block, 1, 1), grid=(grid, 1))
 
                 # Recuperamos los datos desde la GPU
@@ -646,4 +661,19 @@ class GWO:
                 self.numberFeatures[i] = numeroFeatures
 
                 tiempoFinal = time.time()
-                print(f"Explotación {i + 1} / {self.numeroAgentes} tiempo de ejecución: {tiempoFinal - tiempoInicial} segundos")            
+                print(f"Explotación {i + 1} / {self.numeroAgentes} tiempo de ejecución: {tiempoFinal - tiempoInicial} segundos")
+
+    def generarSemilla(self):
+        # Estrategia 1: Entropía del sistema operativo con os.urandom
+        entropia = int.from_bytes(os.urandom(4), byteorder='big')
+        
+        # Estrategia 2: Tiempo en nanosegundos combinado con hash
+        tiempoActual = time.time_ns()
+        tiempoHash = int(hashlib.sha256(str(tiempoActual).encode()).hexdigest(), 16)
+        
+        # Estrategia 3: Generador aleatorio de NumPy sin depender del tiempo
+        numeroAleatorio = np.random.randint(0, 2**32, dtype=np.uint32)
+        
+        # Combinar las tres fuentes
+        semilla = (entropia ^ tiempoHash ^ numeroAleatorio) % (2**32)
+        return np.uint32(semilla)
