@@ -6,12 +6,15 @@ from tqdm import tqdm
 
 import tensorflow as tf
 from tensorflow import keras
+from tensorflow.keras.utils import register_keras_serializable
 from tensorflow.keras.layers import Layer, Flatten, Dense, Input
 from tensorflow.keras.models import load_model, Model
 
 import pycuda.autoinit # type: ignore
 import pycuda.driver as cuda  # type: ignore
 from pycuda.compiler import SourceModule # type: ignore
+
+from weedDetectionInWheat.metaheuristic.customLayers.maskLayer import MaskLayer
 
 class GWO:
     def __init__(self, model, iterMaximo=10, numeroAgentes = 5,  numeroLobos = 5, classWeight = None, transferLearning = None, featureSelection = None):
@@ -81,7 +84,7 @@ class GWO:
 
             for i in range(self.numeroAgentes):
 
-                self.positions[i] = self.asignarSelection()
+                self.positions[i], self.positionsNoRound[i], self.numberFeatures[i] = self.asignarSelection()
 
             return
 
@@ -135,40 +138,28 @@ class GWO:
 
     def asignarSelection(self):
 
-        pocisionRandom = []
+        pocision = []
+        posicionNoRound = []
+        cantidadFeatures = 0
 
         for i in range(self.cantidadPesos):
 
             random_weights = np.random.uniform(self.limiteInferior, self.limiteSuperior)
-            pocisionRandom.append(random_weights)
+            posicionNoRound.append(random_weights)
 
-        return np.array(pocisionRandom)
+        for i in range(self.cantidadPesos):
+
+            sigmoid = 1 / (1 + np.exp(posicionNoRound[i]))
+
+            if(sigmoid > 0.5):
+                cantidadFeatures += 1
+                pocision.append(1)
+            else:
+                pocision.append(0)
+
+        return np.array(pocision), np.array(posicionNoRound), cantidadFeatures
 
     def modificarModelo(self, mascara):
-
-        class MaskLayer(Layer):
-
-            def __init__(self, mask=None, name="mask", **kwargs):
-
-                super(MaskLayer, self).__init__(name=name, **kwargs)
-                self.mask = tf.Variable(initial_value=tf.constant(mask, dtype=tf.float32), trainable=False)
-            
-            def call(self, inputs):
-                return inputs * self.mask 
-            
-            def set_mask(self, new_mask):
-                self.mask.assign(new_mask)
-
-            def get_config(self):
-
-                config = super(MaskLayer, self).get_config()
-
-                config.update({
-                    "mask": self.mask.numpy().tolist() if self.mask is not None else None,
-                    "name": self.name,
-                })
-
-                return config
 
         capasEntrada = self.model.get_layer("conv2d").input
         capasSalida = self.model.get_layer('flatten').output
@@ -339,7 +330,7 @@ class GWO:
         for epoch in range(self.iterMaximo):
 
             self.GWOExploracionFeatures(datasetEntrenamiento, datasetEvaluacion, epoch)
-            self.GWOExplotacionFeatures(epoch)
+            #self.GWOExplotacionFeatures(epoch)
 
             for i in range(self.numeroLobos):
 
@@ -349,7 +340,6 @@ class GWO:
                 self.valLossModelLog[i][epoch] = self.valLoss[i] 
                 self.numberFeaturesLog[i][epoch] = self.numberFeaturesLobos[i]           
 
-        
         for i in range(len(self.positionsLobos[0])):
 
             if(self.positionsLobos[0, i] > 0.5):
@@ -608,7 +598,7 @@ class GWO:
 
                             posicionSiguiente[i] = fabs(C[i] * posicionLoboActual - posicionPresa);
                             float X = posicionLoboActual - A[i] * posicionSiguiente[i];
-                            X *= loss[i];
+                            //X *= loss[i];
                             solucion += X;
                         }
                                 

@@ -1,3 +1,5 @@
+import sys
+import os
 import pickle
 import numpy as np
 import tensorflow as tf
@@ -10,6 +12,10 @@ from sklearn.svm import SVC # type: ignore
 from sklearn.preprocessing import StandardScaler # type: ignore
 from sklearn.pipeline import Pipeline # type: ignore
 from sklearn.metrics import accuracy_score # type: ignore
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
+from weedDetectionInWheat.metaheuristic.customLayers.maskLayer import MaskLayer
 
 # Cargar datos predicción
 
@@ -51,6 +57,7 @@ validacionDataFrame = tf.keras.utils.image_dataset_from_directory(
 alexnet = keras.models.load_model("weedDetectionInWheat/CNN/alexnetMetaheuristic.keras")
 
 alexnet.evaluate(validacionDataFrame, verbose = 1)
+alexnet.summary()
 
 # Extraer hasta la capa flatten deseada para el entrenamiento del SVM.
 
