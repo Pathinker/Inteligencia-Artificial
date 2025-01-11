@@ -20,7 +20,7 @@ direccionValidamiento = direccionDataset / "valid/"
 anchoImagen = 227
 largoImagen = 227
 imgSize = [anchoImagen, largoImagen]
-batchSize = 512
+batchSize = 128
 
 trainDataFrame = tf.keras.utils.image_dataset_from_directory(
     direccionEntrenamiento,
@@ -77,7 +77,7 @@ arquitecturaCNN.compile(
 alexnetGradiente = keras.models.load_model("weedDetectionInWheat/CNN/alexnetNormalized.keras")
 
 # Inicializar GWO con la estructura de los pesos del modelo
-gwo = GWO(model=alexnetGradiente, iterMaximo=1, numeroAgentes= 1, numeroLobos = 10, classWeight = pesosClases, featureSelection = "flatten")
+gwo = GWO(model=alexnetGradiente, iterMaximo=100, numeroAgentes= 10, numeroLobos = 10, classWeight = pesosClases, featureSelection = "flatten")
 
 # Optimizar con GWO
 alexnetGradiente = gwo.optimizeFeature(dataArgumentationTrain, validacionDataFrame)

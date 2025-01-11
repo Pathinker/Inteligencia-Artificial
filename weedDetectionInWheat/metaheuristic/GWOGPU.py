@@ -282,8 +282,8 @@ class GWO:
         accuracy = 0.0
         total = 0
 
-        alfa = 0.50
-        beta = 0.50
+        alfa = 0.99
+        beta = 0.01
         
         for x, y in tqdm(dataset, desc = f"Calculando Perdida", unit="batch"):
 
@@ -330,7 +330,7 @@ class GWO:
         for epoch in range(self.iterMaximo):
 
             self.GWOExploracionFeatures(datasetEntrenamiento, datasetEvaluacion, epoch)
-            #self.GWOExplotacionFeatures(epoch)
+            self.GWOExplotacionFeatures(epoch)
 
             for i in range(self.numeroLobos):
 
@@ -598,7 +598,7 @@ class GWO:
 
                             posicionSiguiente[i] = fabs(C[i] * posicionLoboActual - posicionPresa);
                             float X = posicionLoboActual - A[i] * posicionSiguiente[i];
-                            //X *= loss[i];
+                            X *= loss[i];
                             solucion += X;
                         }
                                 

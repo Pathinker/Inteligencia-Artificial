@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-datos = np.loadtxt("weedDetectionInWheat/CNN/MetaheuristicReportFirstSelection.txt", delimiter=",")
+datos = np.loadtxt("weedDetectionInWheat/CNN/MetaheuristicReport50.txt", delimiter=",")
 
 epochs = []
 

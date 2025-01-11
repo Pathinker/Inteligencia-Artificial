@@ -72,46 +72,14 @@ capaObjetivo = alexnet.get_layer(nombreCapa)
 alexnetFlatten = Model(inputs = capaInicial.input, outputs = capaObjetivo.output)
 alexnetFlatten.summary()
 
-# Extraer las caracteristicas haciendo uso de la capas convolucionales del modelo alexnet
+for images, etiquetas in trainDataFrame.take(1):
 
-def extraerConvolucion(dataset):
-
-    features = []
-    labels = []
+    imagen = images[0]
+    imagen = tf.expand_dims(imagen, axis = 0)
+    output = alexnetFlatten.predict(imagen)
+    output = output.flatten()
     
-    for images, batch_labels in dataset:
+    frecuenciaValores = {valor: (output == valor).sum() for valor in set(output)}
+    print(frecuenciaValores)
 
-        # Extraer características de la capa flatten de cada una de las imágenes
-        batch_features = alexnetFlatten(images, training=False)
-        features.append(batch_features.numpy())  # Convertir a numpy
-        labels.append(batch_labels.numpy())  # Obtener las etiquetas
-    
-    return np.concatenate(features), np.concatenate(labels)
-
-model = Pipeline([
-
-    ("scaler", StandardScaler()),
-    ("svm", SVC(C = 1, kernel = "rbf", gamma = "scale", verbose = True))
-
-])
-
-# Extraer características y etiquetas
-xTrain, yTrain = extraerConvolucion(trainDataFrame)
-yTrain = yTrain.ravel() # Transformar a 1D
-
-# Entrenar el SVM con las características extraídas
-model.fit(xTrain, yTrain)
-
-pick = open("weedDetectionInWheat/SVM/SVMrbfBoosting.sav", "wb")
-pickle.dump(model, pick)
-pick.close()
-
-# Validar el modelo
-
-xValidacion, yValidacion = extraerConvolucion(validacionDataFrame)
-yValidacion = yValidacion.ravel() # Transformar a 1D
-yPrediccion = model.predict(xValidacion)
-
-# Calcular precisión
-accuracy = accuracy_score(yValidacion, yPrediccion)
-print(f"Precisión del modelo SVM Boosting CNN: {accuracy}")
+    print("Pesos: \n", capaObjetivo.get_weights())
