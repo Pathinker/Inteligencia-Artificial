@@ -64,7 +64,7 @@ alexnet.summary()
 nombreCapa = "conv2d"
 capaInicial = alexnet.get_layer(nombreCapa)
 
-nombreCapa = "mask"  
+nombreCapa = "flatten"  
 capaObjetivo = alexnet.get_layer(nombreCapa)
 
 # Crear nuevo modelo hasta la capa flatten siendo la última convolucional.

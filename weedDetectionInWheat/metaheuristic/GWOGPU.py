@@ -14,10 +14,15 @@ import pycuda.autoinit # type: ignore
 import pycuda.driver as cuda  # type: ignore
 from pycuda.compiler import SourceModule # type: ignore
 
+from sklearn.svm import SVC # type: ignore
+from sklearn.preprocessing import StandardScaler # type: ignore
+from sklearn.pipeline import Pipeline # type: ignore
+from sklearn.metrics import accuracy_score # type: ignore
+
 from weedDetectionInWheat.metaheuristic.customLayers.maskLayer import MaskLayer
 
 class GWO:
-    def __init__(self, model, iterMaximo=10, numeroAgentes = 5,  numeroLobos = 5, classWeight = None, transferLearning = None, featureSelection = None):
+    def __init__(self, model, iterMaximo=10, numeroAgentes = 5,  numeroLobos = 5, classWeight = None, transferLearning = None, featureSelection = None, ensembleModel = None):
 
         # Hiperparametros del constructor
 
@@ -35,6 +40,7 @@ class GWO:
         self.numberFeatures = None
         self.weights_structure = None
         self.cantidadPesos = None
+        self.ensembleModel = ensembleModel
 
         self.nombreLobos = {0 : "Alfa", 1 : "Beta", 2: "Delta"}
 
@@ -307,6 +313,96 @@ class GWO:
         print(f"Loss: {loss/total}, Accuracy: {accuracy / total}, Features = {self.numberFeatures[iteracion]}")
         return (loss / total), (accuracy / total), self.numberFeatures[iteracion]
 
+    def calcularPerdidaEnsamble(self, trainDataset, evaluationDataset, classWeight, iteracion):
+
+        inicialTime = time.time()
+
+        alfa = 0.99
+        beta = 0.01
+
+        nombreCapa = "conv2d"
+        capaInicial = self.model.get_layer(nombreCapa)
+
+        nombreCapa = "mask"  
+        capaObjetivo = self.model.get_layer(nombreCapa)
+
+        alexnetFlatten = Model(inputs = capaInicial.input, outputs = capaObjetivo.output)
+
+        svm = Pipeline([
+
+            ("scaler", StandardScaler()),
+            ("svm", SVC(C = 1, kernel = "rbf", gamma = "scale", verbose = True))
+
+        ])
+
+        def obtenerEtiquetas(dataset, model):
+  
+            features = []
+            labels = []
+
+            for images, batchLabels in dataset:
+
+                # Extraer características de la capa flatten de cada una de las imágenes
+                batchFeatures = model(images, training=False)
+                features.append(batchFeatures.numpy())  # Convertir a numpy
+                labels.append(batchLabels.numpy())  # Obtener las etiquetas
+            
+            x = np.concatenate(features)
+            y = np.concatenate(labels)
+            y = y.ravel()
+
+            return x, y
+
+        xTrain, yTrain = obtenerEtiquetas(trainDataset, alexnetFlatten)
+        xValidation, yValidation = obtenerEtiquetas(evaluationDataset, alexnetFlatten)        
+        svm.fit(xTrain, yTrain)
+
+        def obtenerPerdida(x, y, svm, classWeight):
+
+            predict = svm.predict(x)
+            decisionFunction = svm.decision_function(x)
+            probabilities = 1 / (1 + np.exp(-decisionFunction)) 
+
+            binaryCrossentropy = tf.keras.losses.binary_crossentropy(y, probabilities)
+            lossesList = []
+
+            for label in y:
+
+                loss = classWeight[label]
+                lossesList.append(loss)
+
+            lossesList = np.array(lossesList)
+            weightedLoss = binaryCrossentropy * lossesList
+            weightedLoss = np.mean(weightedLoss)
+            
+            correctPredictions = []
+
+            for estimate, expected in zip(predict, y):
+
+                if(estimate > 0.5):
+                    estimate = 1
+                else:
+                    estimate = 0
+
+                if(estimate == expected):
+                    correctPredictions.append(1)
+                else:
+                    correctPredictions.append(0)
+            
+            accuracy = sum(correctPredictions) / len(correctPredictions)
+            weightedLoss = alfa * weightedLoss + beta * (self.numberFeatures[iteracion] / self.cantidadPesos)
+            
+            return weightedLoss, accuracy
+        
+        trainLoss, trainAccuracy = obtenerPerdida(xTrain, yTrain, svm, classWeight)
+        validationLoss, validationAccuracy = obtenerPerdida(xValidation, yValidation, svm, classWeight)
+
+        finalTime = time.time()
+
+        print(f"Execution Time: {finalTime - inicialTime} seconds")
+        print(f"Loss: {trainLoss}, Accuracy: {trainAccuracy}, Validation Loss: {validationLoss}, Validation Accuracy: {validationAccuracy}, Features = {self.numberFeatures[iteracion]}")
+        return trainLoss, trainAccuracy, validationLoss, validationAccuracy,  self.numberFeatures[iteracion] 
+                    
     def optimize(self, datasetEntrenamiento, datasetEvaluacion):
 
         for epoch in range(self.iterMaximo):
@@ -380,9 +476,12 @@ class GWO:
             print(f"Exploración Epoch {iteracion + 1} / {self.iterMaximo} (Agente {n + 1} / {self.numeroAgentes})| Entrenamiento | Validación: ")
 
             self.modificarModelo(self.positions[n])
-        
-            loss, accuracy, numberFeatures = self.calcularPerdidaFeatures(datasetEntrenamiento, self.classWeight, n)
-            valLoss, valAccuracy = self.model.evaluate(datasetEvaluacion, verbose=1)    
+
+            if(self.ensembleModel is None):
+                loss, accuracy, numberFeatures = self.calcularPerdidaFeatures(datasetEntrenamiento, self.classWeight, n)
+                valLoss, valAccuracy = self.model.evaluate(datasetEvaluacion, verbose=1)    
+            else:
+                loss, accuracy, valLoss, valAccuracy, numberFeatures = self.calcularPerdidaEnsamble(datasetEntrenamiento, datasetEvaluacion, self.classWeight, n)
 
             for i in range(self.numeroLobos):
 
