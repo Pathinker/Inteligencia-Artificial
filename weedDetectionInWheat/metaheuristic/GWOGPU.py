@@ -22,194 +22,191 @@ from sklearn.metrics import accuracy_score # type: ignore
 from weedDetectionInWheat.metaheuristic.customLayers.maskLayer import MaskLayer
 
 class GWO:
-    def __init__(self, model, iterMaximo=10, numeroAgentes = 5,  numeroLobos = 5, classWeight = None, transferLearning = None, featureSelection = None, ensembleModel = None):
-
-        # Hiperparametros del constructor
+    def __init__(self, model, epochs=10, agents = 5,  wolves = 5, class_weight = None, transfer_learning = None, feature_selection = None, ensemble_model = None):
 
         self.model = model
-        self.iterMaximo = iterMaximo
-        self.numeroAgentes = numeroAgentes
-        self.numeroLobos = numeroLobos
-        self.classWeight = classWeight
-        self.transferLearning = transferLearning
-        self.limiteSuperior = 0.5
-        self.limiteInferior = -0.5
+        self.epochs = epochs
+        self.agents = agents
+        self.wolves = wolves
+        self.wolves_name = {0 : "Alfa", 1 : "Beta", 2: "Delta"}
+        self.class_weight = class_weight
+        self.transfer_learning = transfer_learning
+        self.feature_selection = feature_selection
+        self.ensemble_model = ensemble_model
+        self.upper_bound = 0.5
+        self.lower_bound = -0.5
 
         self.features = None
-        self.featureSelection = featureSelection
-        self.numberFeatures = None
+        self.number_features = None
         self.weights_structure = None
-        self.cantidadPesos = None
-        self.ensembleModel = ensembleModel
+        self.number_weight = None
 
-        self.nombreLobos = {0 : "Alfa", 1 : "Beta", 2: "Delta"}
+        for wolf in range(self.wolves - 3):
 
-        for i in range(self.numeroLobos - 3):
+            self.wolves_name[wolf + 3] = (f"Omega {i + 1}")
 
-            self.nombreLobos[i + 3] = (f"Omega {i + 1}")
-
-        if(featureSelection is None):
+        if(feature_selection is None):
 
             self.weights_structure = model.get_weights()
-            pesos = self.obtenerCantidadPesos()
-            self.cantidadPesos = np.uint32(pesos)
+            weights = self.get_number_weights()
+            self.number_weights = np.uint32(weights)
 
         else:
 
-            self.features = self.model.get_layer(featureSelection)
-            self.inputFeatures = self.features.get_build_config()
-            self.inputShape = self.inputFeatures["input_shape"]
-            pesos = [dim for dim in self.inputShape if dim is not None]
+            self.features = self.model.get_layer(feature_selection)
+            self.input_features = self.features.get_build_config()
+            self.input_shape = self.input_features["input_shape"]
+            weights = [dim for dim in self.input_shape if dim is not None]
 
-            self.cantidadPesos = 1
+            self.number_weights = 1
 
-            for valor in pesos:
+            for value in weights:
 
-                self.cantidadPesos *= valor
+                self.number_weights *= value
 
-            self.cantidadPesos = np.uint32(self.cantidadPesos)
+            self.number_weights = np.uint32(self.number_weights)
 
-        self.positions = np.zeros((numeroAgentes, self.cantidadPesos))
-        self.positionsNoRound = np.zeros((numeroAgentes, self.cantidadPesos))
-        self.numberFeatures = np.zeros((numeroAgentes))
-        self.positionsLobos = np.zeros((self.numeroLobos, self.cantidadPesos))
-        self.numberFeaturesLobos = np.zeros((self.numeroLobos))
+        self.positions = np.zeros((agents, self.number_weights))
+        self.round_positions = np.zeros((agents, self.number_weights))
+        self.number_features = np.zeros((agents))
+        self.wolves_positions = np.zeros((self.wolves, self.number_weights))
+        self.number_featuresLobos = np.zeros((self.wolves))
 
-        self.loss = np.full(self.numeroLobos, np.finfo(np.float64).max)
-        self.accuracy = np.zeros((self.numeroLobos))
-        self.valLoss = np.full(self.numeroLobos, np.finfo(np.float64).max)
-        self.valAccuracy = np.zeros((self.numeroLobos))
+        self.loss = np.full(self.wolves, np.finfo(np.float64).max)
+        self.accuracy = np.zeros((self.wolves))
+        self.validation_loss = np.full(self.wolves, np.finfo(np.float64).max)
+        self.validation_accuracy = np.zeros((self.wolves))
         
-        self.lossModelLog = np.zeros((self.numeroLobos, self.iterMaximo))
-        self.accuracyModelLog = np.zeros((self.numeroLobos, self.iterMaximo))
-        self.valLossModelLog = np.zeros((self.numeroLobos, self.iterMaximo))
-        self.valAccuracyModelLog = np.zeros((self.numeroLobos, self.iterMaximo))
-        self.numberFeaturesLog = np.zeros((self.numeroLobos, self.iterMaximo))
+        self.loss_log = np.zeros((self.wolves, self.epochs))
+        self.accuracy_log = np.zeros((self.wolves, self.epochs))
+        self.validation_loss_log = np.zeros((self.wolves, self.epochs))
+        self.validation_accuracy_log = np.zeros((self.wolves, self.epochs))
+        self.number_features_log = np.zeros((self.wolves, self.epochs))
         
-        if(featureSelection is not None):
+        if(feature_selection is not None):
 
-            for i in range(self.numeroAgentes):
+            for i in range(self.agents):
 
-                self.positions[i], self.positionsNoRound[i], self.numberFeatures[i] = self.asignarSelection()
+                self.round_positions[i], self.positions[i], self.number_features[i] = self.set_selection()
 
             return
 
-        elif(transferLearning is None):
+        elif(transfer_learning is None):
 
-            for i in range(self.numeroAgentes):
+            for i in range(self.agents):
 
-                self.positions[i] = self.asignarPosicion()
+                self.round_positions[i] = self.set_position()
 
         else:
 
-            self.asignarLearning()
+            self.set_learning()
 
-        self.setWeights(self.positions[0])
+        self.set_weights(self.round_positions[0])
 
-    def obtenerCantidadPesos(self):
+    def get_number_weights(self):
         
-        pesosTotales = 0
+        total_weights = 0
 
-        for w in self.weights_structure:
+        for weights in self.weights_structure:
 
-            elementos = np.prod(w.shape)  # Producto de todas las dimensiones de la forma
-            pesosTotales += elementos
+            elementos = np.prod(weights.shape)
+            total_weights += elementos
 
-        return pesosTotales
+        return total_weights
 
-    def setWeights(self, weights):
+    def set_weights(self, weights):
 
         new_weights = []
-        idx = 0
-        for w in self.weights_structure:
+        index = 0
+
+        for weights in self.weights_structure:
             
-            shape = w.shape
+            shape = weights.shape
             size = np.prod(shape)
-            new_weights.append(np.array(weights[idx:idx + size]).reshape(w.shape)) # Asignar a la forma original
-            idx += size
+            new_weights.append(np.array(weights[index:index + size]).reshape(weights.shape))
+            index += size
 
         self.model.set_weights(new_weights)
 
-    def asignarPosicion(self): # Generar una matriz con todos los pesos a optimizar de la red.
+    def set_position(self):
 
-        pocisionRandom = []
+        random_position = []
 
         for w in self.weights_structure:
 
-            # Generar una matriz de valores aleatorios con la misma forma que los pesos 'w'
-            random_weights = np.random.uniform(self.limiteInferior, self.limiteSuperior, w.shape)
-            pocisionRandom.append(random_weights.flatten())
+            random_weights = np.random.uniform(self.lower_bound, self.upper_bound, w.shape)
+            random_position.append(random_weights.flatten())
 
-        return np.concatenate(pocisionRandom)
+        return np.concatenate(random_position)
 
-    def asignarSelection(self):
+    def set_selection(self):
 
-        pocision = []
-        posicionNoRound = []
+        position = []
+        round_position = []
         cantidadFeatures = 0
 
-        for i in range(self.cantidadPesos):
+        for i in range(self.number_weights):
 
-            random_weights = np.random.uniform(self.limiteInferior, self.limiteSuperior)
-            posicionNoRound.append(random_weights)
+            random_weights = np.random.uniform(self.lower_bound, self.upper_bound)
+            position.append(random_weights)
 
-        for i in range(self.cantidadPesos):
+        for i in range(self.number_weight):
 
-            sigmoid = 1 / (1 + np.exp(posicionNoRound[i]))
+            sigmoid = 1 / (1 + np.exp(position[i]))
 
             if(sigmoid > 0.5):
                 cantidadFeatures += 1
-                pocision.append(1)
+                round_position.append(1)
             else:
-                pocision.append(0)
+                round_position.append(0)
 
-        return np.array(pocision), np.array(posicionNoRound), cantidadFeatures
+        return np.array(round_position), np.array(position), cantidadFeatures
 
-    def modificarModelo(self, mascara):
+    def set_mask(self, mask):
 
-        capasEntrada = self.model.get_layer("conv2d").input
-        capasSalida = self.model.get_layer('flatten').output
+        entry_layer = self.model.get_layer("conv2d").input
+        output_layer = self.model.get_layer('flatten').output
 
-        mascaraLayer = MaskLayer(mask=mascara)(capasSalida)
+        mask_layer = MaskLayer(mask=mask)(output_layer)
 
-        capasSalida = mascaraLayer
-        agregarLayers = False 
+        output_layer = mask_layer
+        feature_selection_layers = False 
 
-        for layer in self.model.layers: # Agregar las capas restantes personalizadas
+        for layer in self.model.layers:
             if layer.name == 'dense':
-                agregarLayers = True
-            if agregarLayers:
-                capasSalida = layer(capasSalida)
+                feature_selection_layers = True
+            if feature_selection_layers:
+                output_layer = layer(output_layer)
 
-        modeloCustom = Model(inputs=capasEntrada, outputs=capasSalida)
+        custom_model = Model(inputs=entry_layer, outputs=output_layer)
 
-        modeloCustom.compile(
+        custom_model.compile(
             loss='binary_crossentropy',
             optimizer=tf.keras.optimizers.Adam(0.001),
             metrics=['accuracy'],
         )
 
-        self.model = modeloCustom
+        self.model = custom_model
 
-    def asignarLearning(self):
+    def set_learning(self):
 
-        self.transferLearning= self.model.get_weights()
-        flattenedWeights = np.concatenate([weight.flatten() for weight in self.transferLearning])
-        self.transferLearning = flattenedWeights
+        self.transfer_learning= self.model.get_weights()
+        flattened_weights = np.concatenate([weight.flatten() for weight in self.transfer_learning])
+        self.transfer_learning = flattened_weights
 
-        for i in range(self.numeroAgentes):
+        for i in range(self.agents):
 
-            tiempoInicial = time.time()
-            pesos = len(self.transferLearning)
+            inicial_time = time.time()
+            weights = len(self.transfer_learning)
 
-            posiciones = np.array(self.positions[i], dtype=np.float32)
-            transferLearning = np.array(self.transferLearning, dtype=np.float32)
+            positions = np.array(self.round_positions[i], dtype=np.float32)
+            transfer_learning = np.array(self.transfer_learning, dtype=np.float32)
 
-            distanciaPosiciones = cuda.mem_alloc(posiciones.nbytes)
-            cuda.memcpy_htod(distanciaPosiciones, posiciones)
+            positions_distance = cuda.mem_alloc(positions.nbytes)
+            cuda.memcpy_htod(positions_distance, positions)
 
-            transferLearning = cuda.mem_alloc(self.transferLearning.nbytes)
-            cuda.memcpy_htod(transferLearning, self.transferLearning)
+            transfer_learning = cuda.mem_alloc(self.transfer_learning.nbytes)
+            cuda.memcpy_htod(transfer_learning, self.transfer_learning)
 
             mod = SourceModule("""
 
@@ -219,44 +216,44 @@ class GWO:
                 seed ^= seed << 5;
                 return (seed & 0x7FFFFFFF) / float(0x7FFFFFFF) * 2;
             }
-            __global__ void actualizar(float *posiciones, float *transferLearning, int numeroPesos,
-                                        float limiteInferior, float limiteSuperior,  unsigned int seed) {
+            __global__ void update(float *positions, float *transfer_learning, int weights_number,
+                                        float lower_bound, float upper_bound,  unsigned int seed) {
                 int thread = blockIdx.x * blockDim.x + threadIdx.x;
                 
-                if (thread < numeroPesos) {
+                if (thread < weights_number) {
                                
-                    unsigned int hilo_seed = seed + thread;
-                    float random = xorshift32(hilo_seed);
+                    unsigned int thread_seed = seed + thread;
+                    float random = xorshift32(thread_seed);
             
-                    posiciones[thread] = transferLearning[thread] * random;
+                    positions[thread] = transfer_learning[thread] * random;
                                
-                    if(posiciones[thread] < limiteInferior){
+                    if(positions[thread] < lower_bound){
 
-                        posiciones[thread] = limiteInferior;            
+                        positions[thread] = lower_bound;            
                     }
-                    else if(posiciones[thread] > limiteSuperior){
+                    else if(positions[thread] > upper_bound){
                                
-                        posiciones[thread] = limiteSuperior;
+                        positions[thread] = upper_bound;
                     }               
                 }
             }
             """)
 
-            actualizar_posiciones = mod.get_function("actualizar")
+            update_positions = mod.get_function("update")
             block = 1024
-            grid = (pesos + block - 1) // block
+            grid = (weights + block - 1) // block
             seed = np.uint32(int(time.time() * 1000) % (2**32))
 
-            actualizar_posiciones(distanciaPosiciones, transferLearning, np.int32(pesos), np.float32(self.limiteInferior), 
-                                np.float32(self.limiteSuperior), seed, block=(block, 1, 1), grid=(grid, 1))
+            update_positions(positions_distance, transfer_learning, np.int32(weights), np.float32(self.lower_bound), 
+                                np.float32(self.upper_bound), seed, block=(block, 1, 1), grid=(grid, 1))
 
-            cuda.memcpy_dtoh(posiciones, distanciaPosiciones)
-            self.positions[i] = posiciones
+            cuda.memcpy_dtoh(positions, positions_distance)
+            self.round_positions[i] = positions
 
-            tiempoFinal = time.time()
-            print(f"Inicialización {i + 1} / {self.numeroAgentes} tiempo de ejecución: {tiempoFinal - tiempoInicial} segundos")
+            final_time = time.time()
+            print(f"Inicialización {i + 1} / {self.agents} tiempo de ejecución: {final_time - inicial_time} segundos")
 
-    def calcularPerdidaConPesos(self, dataset, classWeight):
+    def weighted_loss(self, dataset, class_weight):
 
         loss = 0.0
         accuracy = 0.0
@@ -264,25 +261,25 @@ class GWO:
         
         for x, y in tqdm(dataset, desc = f"Calculando Perdida", unit="batch"):
 
-            pesosPonderados = []
+            weighted_losses = []
 
-            for i in y:
+            for label in y:
 
-                peso = classWeight[int(i)]
-                pesosPonderados.append(peso)
+                weight = class_weight[int(label)]
+                weighted_losses.append(weight)
 
-            pesosPonderados = np.array(pesosPonderados)
+            weighted_losses = np.array(weighted_losses)
             
-            lossBatch, accuracyBatch = self.model.evaluate(x, y, sample_weight = pesosPonderados, verbose = 0)
+            loss_batch, accuracy_batch = self.model.evaluate(x, y, sample_weight = weighted_losses, verbose = 0)
 
-            loss += lossBatch
-            accuracy += accuracyBatch
+            loss += loss_batch
+            accuracy += accuracy_batch
             total += 1
 
-        print(f"loss: {loss/total}, Accuracy = {accuracy / total}")
+        print(f"loss: {loss/total}, accuracy = {accuracy / total}")
         return (loss / total), (accuracy / total)
 
-    def calcularPerdidaFeatures(self, dataset, classWeight, iteracion):
+    def loss_features(self, dataset, class_weight, epoch):
 
         loss = 0.0
         accuracy = 0.0
@@ -293,40 +290,40 @@ class GWO:
         
         for x, y in tqdm(dataset, desc = f"Calculando Perdida", unit="batch"):
 
-            pesosPonderados = []
+            weighted_losses = []
 
             for i in y:
 
-                peso = classWeight[int(i)]
-                pesosPonderados.append(peso)
+                peso = class_weight[int(i)]
+                weighted_losses.append(peso)
 
-            pesosPonderados = np.array(pesosPonderados)
+            weighted_losses = np.array(weighted_losses)
             
-            lossBatch, accuracyBatch = self.model.evaluate(x, y, sample_weight = pesosPonderados, verbose = 0)
+            loss_batch, accuracy_batch = self.model.evaluate(x, y, sample_weight = weighted_losses, verbose = 0)
 
-            loss += lossBatch
-            accuracy += accuracyBatch
+            loss += loss_batch
+            accuracy += accuracy_batch
             total += 1
         
-        loss = alfa * loss + beta * (self.numberFeatures[iteracion] / self.cantidadPesos)
+        loss = alfa * loss + beta * (self.number_features[epoch] / self.number_weight)
 
-        print(f"Loss: {loss/total}, Accuracy: {accuracy / total}, Features = {self.numberFeatures[iteracion]}")
-        return (loss / total), (accuracy / total), self.numberFeatures[iteracion]
+        print(f"Loss: {loss/total}, Accuracy: {accuracy / total}, Features = {self.number_features[epoch]}")
+        return (loss / total), (accuracy / total), self.number_features[epoch]
 
-    def calcularPerdidaEnsamble(self, trainDataset, evaluationDataset, classWeight, iteracion):
+    def loss_ensemble(self, trainDataset, evaluationDataset, class_weight, epoch):
 
-        inicialTime = time.time()
+        inicial_time = time.time()
 
         alfa = 0.99
         beta = 0.01
 
-        nombreCapa = "conv2d"
-        capaInicial = self.model.get_layer(nombreCapa)
+        layer_name = "conv2d"
+        entry_layer = self.model.get_layer(layer_name)
 
-        nombreCapa = "mask"  
-        capaObjetivo = self.model.get_layer(nombreCapa)
+        layer_name = "mask"  
+        output_layer = self.model.get_layer(layer_name)
 
-        alexnetFlatten = Model(inputs = capaInicial.input, outputs = capaObjetivo.output)
+        flatten_alexnet = Model(inputs = entry_layer.input, outputs = output_layer.output)
 
         svm = Pipeline([
 
@@ -335,17 +332,17 @@ class GWO:
 
         ])
 
-        def obtenerEtiquetas(dataset, model):
+        def get_convolution(dataset, model):
   
             features = []
             labels = []
 
-            for images, batchLabels in dataset:
+            for images, batch_labels in dataset:
 
                 # Extraer características de la capa flatten de cada una de las imágenes
                 batchFeatures = model(images, training=False)
                 features.append(batchFeatures.numpy())  # Convertir a numpy
-                labels.append(batchLabels.numpy())  # Obtener las etiquetas
+                labels.append(batch_labels.numpy())  # Obtener las etiquetas
             
             x = np.concatenate(features)
             y = np.concatenate(labels)
@@ -353,29 +350,29 @@ class GWO:
 
             return x, y
 
-        xTrain, yTrain = obtenerEtiquetas(trainDataset, alexnetFlatten)
-        xValidation, yValidation = obtenerEtiquetas(evaluationDataset, alexnetFlatten)        
-        svm.fit(xTrain, yTrain)
+        x_train, y_train = get_convolution(trainDataset, flatten_alexnet)
+        x_validation, y_validation = get_convolution(evaluationDataset, flatten_alexnet)        
+        svm.fit(x_train, y_train)
 
-        def obtenerPerdida(x, y, svm, classWeight):
+        def get_loss(x, y, svm, class_weight):
 
             predict = svm.predict(x)
-            decisionFunction = svm.decision_function(x)
-            probabilities = 1 / (1 + np.exp(-decisionFunction)) 
+            decision_function = svm.decision_function(x)
+            probabilities = 1 / (1 + np.exp(-decision_function)) 
 
-            binaryCrossentropy = tf.keras.losses.binary_crossentropy(y, probabilities)
-            lossesList = []
+            binary_crossentropy = tf.keras.losses.binary_crossentropy(y, probabilities)
+            losses_list = []
 
             for label in y:
 
-                loss = classWeight[label]
-                lossesList.append(loss)
+                loss = class_weight[label]
+                losses_list.append(loss)
 
-            lossesList = np.array(lossesList)
-            weightedLoss = binaryCrossentropy * lossesList
-            weightedLoss = np.mean(weightedLoss)
+            losses_list = np.array(losses_list)
+            weighted_loss = binary_crossentropy * losses_list
+            weighted_loss = np.mean(weighted_loss)
             
-            correctPredictions = []
+            correct_predictions = []
 
             for estimate, expected in zip(predict, y):
 
@@ -385,175 +382,175 @@ class GWO:
                     estimate = 0
 
                 if(estimate == expected):
-                    correctPredictions.append(1)
+                    correct_predictions.append(1)
                 else:
-                    correctPredictions.append(0)
+                    correct_predictions.append(0)
             
-            accuracy = sum(correctPredictions) / len(correctPredictions)
-            weightedLoss = alfa * weightedLoss + beta * (self.numberFeatures[iteracion] / self.cantidadPesos)
+            accuracy = sum(correct_predictions) / len(correct_predictions)
+            weighted_loss = alfa * weighted_loss + beta * (self.number_features[epoch] / self.number_weight)
             
-            return weightedLoss, accuracy
+            return weighted_loss, accuracy
         
-        trainLoss, trainAccuracy = obtenerPerdida(xTrain, yTrain, svm, classWeight)
-        validationLoss, validationAccuracy = obtenerPerdida(xValidation, yValidation, svm, classWeight)
+        train_loss, train_accuracy = get_loss(x_train, y_train, svm, class_weight)
+        validation_loss, validation_accuracy = get_loss(x_validation, y_validation, svm, class_weight)
 
-        finalTime = time.time()
+        final_time = time.time()
 
-        print(f"Execution Time: {finalTime - inicialTime} seconds")
-        print(f"Loss: {trainLoss}, Accuracy: {trainAccuracy}, Validation Loss: {validationLoss}, Validation Accuracy: {validationAccuracy}, Features = {self.numberFeatures[iteracion]}")
-        return trainLoss, trainAccuracy, validationLoss, validationAccuracy,  self.numberFeatures[iteracion] 
+        print(f"Execution Time: {final_time - inicial_time} seconds")
+        print(f"Loss: {train_loss}, Accuracy: {train_accuracy}, Validation Loss: {validation_loss}, Validation Accuracy: {validation_accuracy}, Features = {self.number_features[epoch]}")
+        return train_loss, train_accuracy, validation_loss, validation_accuracy,  self.number_features[epoch] 
                     
     def optimize(self, datasetEntrenamiento, datasetEvaluacion):
 
-        for epoch in range(self.iterMaximo):
+        for epoch in range(self.epochs):
 
-            self.GWOExploracion(datasetEntrenamiento, datasetEvaluacion, epoch)
-            self.GWOExplotacion(epoch)
+            self.GWO_exploration(datasetEntrenamiento, datasetEvaluacion, epoch)
+            self.GWO_explotation(epoch)
 
-            for i in range(self.numeroLobos):
+            for i in range(self.wolves):
 
-                self.accuracyModelLog[i][epoch] = self.accuracy[i]
-                self.lossModelLog[i][epoch] = self.loss[i]
-                self.valAccuracyModelLog[i][epoch] = self.valAccuracy[i]
-                self.valLossModelLog[i][epoch] = self.valLoss[i]
+                self.accuracy_log[i][epoch] = self.accuracy[i]
+                self.loss_log[i][epoch] = self.loss[i]
+                self.validation_accuracy_log[i][epoch] = self.validation_accuracy[i]
+                self.validation_loss_log[i][epoch] = self.validation_loss[i]
         
-        self.setWeights(self.positionsLobos[0])
-        self.escribirReporte()
+        self.set_weights(self.wolves_positions[0])
+        self.get_report()
         return self.model
     
-    def optimizeFeature(self, datasetEntrenamiento, datasetEvaluacion):
+    def optimize_feature(self, datasetEntrenamiento, datasetEvaluacion):
 
-        for epoch in range(self.iterMaximo):
+        for epoch in range(self.epochs):
 
-            self.GWOExploracionFeatures(datasetEntrenamiento, datasetEvaluacion, epoch)
-            self.GWOExplotacionFeatures(epoch)
+            self.GWO_feature_exploration(datasetEntrenamiento, datasetEvaluacion, epoch)
+            self.GWO_feature_explotation(epoch)
 
-            for i in range(self.numeroLobos):
+            for i in range(self.wolves):
 
-                self.accuracyModelLog[i][epoch] = self.accuracy[i]
-                self.lossModelLog[i][epoch] = self.loss[i]
-                self.valAccuracyModelLog[i][epoch] = self.valAccuracy[i]
-                self.valLossModelLog[i][epoch] = self.valLoss[i] 
-                self.numberFeaturesLog[i][epoch] = self.numberFeaturesLobos[i]           
+                self.accuracy_log[i][epoch] = self.accuracy[i]
+                self.loss_log[i][epoch] = self.loss[i]
+                self.validation_accuracy_log[i][epoch] = self.validation_accuracy[i]
+                self.validation_loss_log[i][epoch] = self.validation_loss[i] 
+                self.number_features_log[i][epoch] = self.number_featuresLobos[i]           
 
-        for i in range(len(self.positionsLobos[0])):
+        for i in range(len(self.wolves_positions[0])):
 
-            if(self.positionsLobos[0, i] > 0.5):
-                self.positionsLobos[0, i] = 1
+            if(self.wolves_positions[0, i] > 0.5):
+                self.wolves_positions[0, i] = 1
             else:
-                self.positionsLobos[0, i] = 0
+                self.wolves_positions[0, i] = 0
 
-        self.modificarModelo(self.positionsLobos[0])
-        self.escribirReporte()
+        self.set_mask(self.wolves_positions[0])
+        self.get_report()
         return self.model
     
-    def GWOExploracion(self, datasetEntrenamiento, datasetEvaluacion, iteracion):
+    def GWO_exploration(self, datasetEntrenamiento, datasetEvaluacion, epoch):
 
-        for n in range(self.numeroAgentes):
+        for n in range(self.agents):
 
-            print(f"Exploración Epoch {iteracion + 1} / {self.iterMaximo} (Agente {n + 1} / {self.numeroAgentes})| Entrenamiento | Validación: ")
+            print(f"Exploración Epoch {epoch + 1} / {self.epochs} (Agente {n + 1} / {self.agents})| Entrenamiento | Validación: ")
 
-            self.setWeights(self.positions[n])
-            loss, accuracy = self.calcularPerdidaConPesos(datasetEntrenamiento, self.classWeight, n)
-            valLoss, valAccuracy = self.model.evaluate(datasetEvaluacion, verbose=1)    
+            self.set_weights(self.round_positions[n])
+            loss, accuracy = self.weighted_loss(datasetEntrenamiento, self.class_weight, n)
+            validation_loss, validation_accuracy = self.model.evaluate(datasetEvaluacion, verbose=1)    
 
-            for i in range(self.numeroLobos):
+            for i in range(self.wolves):
 
                 if(loss < self.loss[i]):
 
-                    print(f"Actualizacion {self.nombreLobos[i]}")
-                    self.actualizarLobos(loss, accuracy, valLoss, valAccuracy, np.ravel(self.positions[n, :].copy()), i)
+                    print(f"Actualizacion {self.wolves_name[i]}")
+                    self.update_wolves(loss, accuracy, validation_loss, validation_accuracy, np.ravel(self.round_positions[n, :].copy()), i)
                     break
             
-            for i in range(self.numeroLobos):
+            for i in range(self.wolves):
 
-                print(f"{self.nombreLobos[i]} -> Perdida: {self.loss[i]}, Accuracy: {self.accuracy[i]}, valLoss: {self.valLoss[i]}, valAccuracy: {self.valAccuracy[i]}")
+                print(f"{self.wolves_name[i]} -> Perdida: {self.loss[i]}, Accuracy: {self.accuracy[i]}, validation_loss: {self.validation_loss[i]}, validation_accuracy: {self.validation_accuracy[i]}")
     
-    def GWOExploracionFeatures(self, datasetEntrenamiento, datasetEvaluacion, iteracion):
+    def GWO_feature_exploration(self, datasetEntrenamiento, datasetEvaluacion, epoch):
 
-        for n in range(self.numeroAgentes):
+        for n in range(self.agents):
 
-            print(f"Exploración Epoch {iteracion + 1} / {self.iterMaximo} (Agente {n + 1} / {self.numeroAgentes})| Entrenamiento | Validación: ")
+            print(f"Exploración Epoch {epoch + 1} / {self.epochs} (Agente {n + 1} / {self.agents})| Entrenamiento | Validación: ")
 
-            self.modificarModelo(self.positions[n])
+            self.set_mask(self.round_positions[n])
 
-            if(self.ensembleModel is None):
-                loss, accuracy, numberFeatures = self.calcularPerdidaFeatures(datasetEntrenamiento, self.classWeight, n)
-                valLoss, valAccuracy = self.model.evaluate(datasetEvaluacion, verbose=1)    
+            if(self.ensemble_model is None):
+                loss, accuracy, number_features = self.loss_features(datasetEntrenamiento, self.class_weight, n)
+                validation_loss, validation_accuracy = self.model.evaluate(datasetEvaluacion, verbose=1)    
             else:
-                loss, accuracy, valLoss, valAccuracy, numberFeatures = self.calcularPerdidaEnsamble(datasetEntrenamiento, datasetEvaluacion, self.classWeight, n)
+                loss, accuracy, validation_loss, validation_accuracy, number_features = self.loss_ensemble(datasetEntrenamiento, datasetEvaluacion, self.class_weight, n)
 
-            for i in range(self.numeroLobos):
+            for i in range(self.wolves):
 
                 if(loss < self.loss[i]):
 
-                    print(f"Actualizacion {self.nombreLobos[i]}")
-                    self.actualizarLobos(loss, accuracy, valLoss, valAccuracy, numberFeatures, np.ravel(self.positionsNoRound[n, :].copy()), i)
+                    print(f"Actualizacion {self.wolves_name[i]}")
+                    self.update_wolves(loss, accuracy, validation_loss, validation_accuracy, number_features, np.ravel(self.positions[n, :].copy()), i)
                     break
             
-            for i in range(self.numeroLobos):
+            for i in range(self.wolves):
 
-                print(f"{self.nombreLobos[i]} -> Perdida: {self.loss[i]}, Accuracy: {self.accuracy[i]}, valLoss: {self.valLoss[i]}, valAccuracy: {self.valAccuracy[i]}, Features: {self.numberFeaturesLobos[i]}")
+                print(f"{self.wolves_name[i]} -> Perdida: {self.loss[i]}, Accuracy: {self.accuracy[i]}, validation_loss: {self.validation_loss[i]}, validation_accuracy: {self.validation_accuracy[i]}, Features: {self.number_featuresLobos[i]}")
         
-    def actualizarLobos(self, loss, accuracy, valLoss, valAccuracy, numberFeatures, posiciones, lobo):
+    def update_wolves(self, loss, accuracy, validation_loss, validation_accuracy, number_features, positions, wolf):
 
-        for i in range(self.numeroLobos - 1, lobo - 1, -1):
+        for i in range(self.wolves - 1, wolf - 1, -1):
 
-            if(i == lobo):
+            if(i == wolf):
 
                 self.loss[i] = loss
                 self.accuracy[i] = accuracy
-                self.valLoss[i] = valLoss
-                self.valAccuracy[i] = valAccuracy
-                self.numberFeaturesLobos[i] = numberFeatures
-                self.positionsLobos[i] = posiciones
+                self.validation_loss[i] = validation_loss
+                self.validation_accuracy[i] = validation_accuracy
+                self.number_featuresLobos[i] = number_features
+                self.wolves_positions[i] = positions
             
             else:
 
                 self.loss[i] = self.loss[i - 1]
                 self.accuracy[i] = self.accuracy[i - 1]
-                self.valLoss[i] = self.valLoss[i - 1]
-                self.valAccuracy[i] = self.valAccuracy[i - 1] 
-                self.numberFeaturesLobos[i] = self.numberFeaturesLobos[i - 1]
-                self.positionsLobos[i] = self.positionsLobos[i - 1]     
+                self.validation_loss[i] = self.validation_loss[i - 1]
+                self.validation_accuracy[i] = self.validation_accuracy[i - 1] 
+                self.number_featuresLobos[i] = self.number_featuresLobos[i - 1]
+                self.wolves_positions[i] = self.wolves_positions[i - 1]     
 
-    def escribirReporte(self):
+    def get_report(self):
 
         with open('weedDetectionInWheat/CNN/MetaheuristicReport.txt', 'w') as f:
 
-            for i in range(self.numeroLobos):
+            for i in range(self.wolves):
 
-                f.write(','.join(map(str, self.accuracyModelLog[i])) + '\n') 
-                f.write(','.join(map(str, self.lossModelLog[i])) + '\n') 
-                f.write(','.join(map(str, self.valAccuracyModelLog[i])) + '\n') 
-                f.write(','.join(map(str, self.valLossModelLog[i])) + '\n')
+                f.write(','.join(map(str, self.accuracy_log[i])) + '\n') 
+                f.write(','.join(map(str, self.loss_log[i])) + '\n') 
+                f.write(','.join(map(str, self.validation_accuracy_log[i])) + '\n') 
+                f.write(','.join(map(str, self.validation_loss_log[i])) + '\n')
 
-                if(self.featureSelection is not None):
+                if(self.feature_selection is not None):
 
-                    f.write(','.join(map(str, self.numberFeaturesLog[i])) + '\n')
+                    f.write(','.join(map(str, self.number_features_log[i])) + '\n')
 
-    def GWOExplotacion(self, iteracion):
+    def GWO_explotation(self, epoch):
 
-        for i in range(self.numeroAgentes):
+        for i in range(self.agents):
 
-            tiempoInicial = time.time()
-            pesos = len(self.positions[0])
+            inicial_time = time.time()
+            weights = len(self.round_positions[0])
 
-            a = 2 - iteracion * (2 / self.iterMaximo)
+            a = 2 - epoch * (2 / self.epochs)
 
-            posiciones = np.array(self.positions[i], dtype=np.float32)
-            posicion = np.array(self.positionsLobos, dtype=np.float32)
+            positions = np.array(self.round_positions[i], dtype=np.float32)
+            posicion = np.array(self.wolves_positions, dtype=np.float32)
             
             # Alojar en  GPU
 
-            distanciaPosiciones = cuda.mem_alloc(posiciones.nbytes)
-            cuda.memcpy_htod(distanciaPosiciones, posiciones)
+            positions_distance = cuda.mem_alloc(positions.nbytes)
+            cuda.memcpy_htod(positions_distance, positions)
 
-            distanciaPosicionLobos= cuda.mem_alloc(posicion.nbytes)
-            cuda.memcpy_htod(distanciaPosicionLobos, posicion)
+            positions_distance_wolves= cuda.mem_alloc(posicion.nbytes)
+            cuda.memcpy_htod(positions_distance_wolves, posicion)
 
             mod = SourceModule("""
-            #define MAXLOBOS """ + str(self.numeroLobos) + """
+            #define MAXWOLVES """ + str(self.wolves) + """
 
             __device__ float xorshift32(unsigned int seed) {
                 seed ^= seed << 13;
@@ -561,104 +558,104 @@ class GWO:
                 seed ^= seed << 5;
                 return (seed & 0x7FFFFFFF) / float(0x7FFFFFFF); // Normalizar a rango [0, 1]
             }
-            __global__ void actualizar(float *posiciones, float *posicionesLobos, float a, int numeroPesos,
-                                        float limiteInferior, float limiteSuperior,  unsigned int seed) {
+            __global__ void update(float *positions, float *wolves_positions, float a, int weights_number,
+                                        float lower_bound, float upper_bound,  unsigned int seed) {
                 int thread = blockIdx.x * blockDim.x + threadIdx.x;
                 
-                if (thread < numeroPesos) {
+                if (thread < weights_number) {
                                
-                    float A[MAXLOBOS];
-                    float C[MAXLOBOS];
-                    float posicionSiguiente[MAXLOBOS];
-                    float solucion = 0.0;
-                    unsigned int hilo_seed = seed + thread;
+                    float A[MAXWOLVES];
+                    float C[MAXWOLVES];
+                    float next_position[MAXWOLVES];
+                    float solution = 0.0;
+                    unsigned int thread_seed = seed + thread;
                                
-                    for (int i = 0; i < MAXLOBOS; i++){
+                    for (int i = 0; i < MAXWOLVES; i++){
 
-                        float r1 = xorshift32(hilo_seed + i);
-                        float r2 = xorshift32(hilo_seed + i + MAXLOBOS);
+                        float r1 = xorshift32(thread_seed + i);
+                        float r2 = xorshift32(thread_seed + i + MAXWOLVES);
                                
                         A[i] = 2 * a * r1 - a;
                         C[i] = 2 * a * r2 - a;
                     }   
                                
-                    for (int i = 0; i < MAXLOBOS; i++){
+                    for (int i = 0; i < MAXWOLVES; i++){
                                
-                        float posicionLoboActual = posicionesLobos[thread + (numeroPesos * i)];
-                        float posicionPresa = posiciones[thread];
+                        float current_wolf_position = wolves_positions[thread + (weights_number * i)];
+                        float prey_position = positions[thread];
 
-                        posicionSiguiente[i] = fabs(C[i] * posicionLoboActual - posicionPresa);
-                        float X = posicionLoboActual - A[i] * posicionSiguiente[i];
-                        solucion += X;
+                        next_position[i] = fabs(C[i] * current_wolf_position - prey_position);
+                        float X = current_wolf_position - A[i] * next_position[i];
+                        solution += X;
                     }
                                
-                    solucion /= MAXLOBOS;
+                    solution /= MAXWOLVES;
                                
-                    posiciones[thread] = solucion;
+                    positions[thread] = solution;
                                
-                    if(posiciones[thread] < limiteInferior){
+                    if(positions[thread] < lower_bound){
 
-                        posiciones[thread] = limiteInferior;            
+                        positions[thread] = lower_bound;            
                     }
-                    else if(posiciones[thread] > limiteSuperior){
+                    else if(positions[thread] > upper_bound){
                                
-                        posiciones[thread] = limiteSuperior;
+                        positions[thread] = upper_bound;
                     }               
                 }
             }
             """)
 
             # Inicializar y ejecutar el kernel
-            actualizar_posiciones = mod.get_function("actualizar")
+            update_positions = mod.get_function("update")
             block = 1024
-            grid = (pesos + block - 1) // block
+            grid = (weights + block - 1) // block
             seed = np.uint32(int(time.time() * 1000) % (2**32))
 
-            actualizar_posiciones(distanciaPosiciones, distanciaPosicionLobos, np.float32(a), np.int32(pesos), np.float32(self.limiteInferior), 
-                                np.float32(self.limiteSuperior), seed, block=(block, 1, 1), grid=(grid, 1))
+            update_positions(positions_distance, positions_distance_wolves, np.float32(a), np.int32(weights), np.float32(self.lower_bound), 
+                                np.float32(self.upper_bound), seed, block=(block, 1, 1), grid=(grid, 1))
 
             # Recuperamos los datos desde la GPU
-            cuda.memcpy_dtoh(posiciones, distanciaPosiciones)
-            self.positions[i] = posiciones
+            cuda.memcpy_dtoh(positions, positions_distance)
+            self.round_positions[i] = positions
 
-            tiempoFinal = time.time()
-            print(f"Explotación {i + 1} / {self.numeroAgentes} tiempo de ejecución: {tiempoFinal - tiempoInicial} segundos")
+            final_time = time.time()
+            print(f"Explotación {i + 1} / {self.agents} tiempo de ejecución: {final_time - inicial_time} segundos")
 
-    def GWOExplotacionFeatures(self, iteracion):
+    def GWO_feature_explotation(self, epoch):
 
-            for i in range(self.numeroAgentes):
+            for i in range(self.agents):
 
-                tiempoInicial = time.time()
-                pesos = len(self.positions[0])
+                inicial_time = time.time()
+                weights = len(self.round_positions[0])
 
-                a = 2 - iteracion * (2 / self.iterMaximo)
+                a = 2 - epoch * (2 / self.epochs)
 
-                posiciones = np.array(self.positions[i], dtype=np.float32)
-                perdida = np.array(self.loss, dtype=np.float32)
-                posicionesNoRound = np.array(self.positions[i], dtype=np.float32)
-                posicion = np.array(self.positionsLobos, dtype=np.float32)
+                positions = np.array(self.round_positions[i], dtype=np.float32)
+                loss = np.array(self.loss, dtype=np.float32)
+                round_positions = np.array(self.round_positions[i], dtype=np.float32)
+                posicion = np.array(self.wolves_positions, dtype=np.float32)
 
-                perdidaTotal = sum(self.loss)
+                total_loss = sum(self.loss)
 
-                for i in range(self.numeroLobos):
-                    perdida[i] = self.loss[i] / perdidaTotal
+                for i in range(self.wolves):
+                    loss[i] = self.loss[i] / total_loss
                 
                 # Alojar en  GPU
 
-                distanciaPosiciones = cuda.mem_alloc(posiciones.nbytes)
-                cuda.memcpy_htod(distanciaPosiciones, posiciones)
+                positions_distance = cuda.mem_alloc(positions.nbytes)
+                cuda.memcpy_htod(positions_distance, positions)
 
-                perdidaNormalizada = cuda.mem_alloc(self.loss.nbytes)
-                cuda.memcpy_htod(perdidaNormalizada, perdida)
+                normalized_loss = cuda.mem_alloc(self.loss.nbytes)
+                cuda.memcpy_htod(normalized_loss, loss)
 
-                distanciaPosicionesNoRound = cuda.mem_alloc(posicionesNoRound.nbytes)
-                cuda.memcpy_htod(distanciaPosicionesNoRound, posicionesNoRound)
+                positions_distance = cuda.mem_alloc(round_positions.nbytes)
+                cuda.memcpy_htod(positions_distance, round_positions)
 
-                distanciaPosicionLobos= cuda.mem_alloc(posicion.nbytes)
-                cuda.memcpy_htod(distanciaPosicionLobos, posicion)
+                positions_distance_wolves= cuda.mem_alloc(posicion.nbytes)
+                cuda.memcpy_htod(positions_distance_wolves, posicion)
 
                 mod = SourceModule("""
-                #define MAXLOBOS """ + str(self.numeroLobos) + """
+                #define MAXWOLVES """ + str(self.wolves) + """
 
                 __device__ float xorshift32(unsigned int seed) {
                     seed ^= seed << 13;
@@ -666,22 +663,22 @@ class GWO:
                     seed ^= seed << 5;
                     return (seed & 0x7FFFFFFF) / float(0x7FFFFFFF); // Normalizar a rango [0, 1]
                 }
-                __global__ void actualizar(float *posiciones, float *loss, float *posicionesNoRound, float *posicionesLobos, float a, int numeroPesos, float limiteInferior, float limiteSuperior, unsigned int seed) {
+                __global__ void actualizar(float *positions, float *loss, float *round_positions, float *wolves_positions, float a, int weights_number, float lower_bound, float upper_bound, unsigned int seed) {
 
                     int thread = blockIdx.x * blockDim.x + threadIdx.x;
                     
-                    if (thread < numeroPesos) {
+                    if (thread < weights_number) {
                                 
-                        float A[MAXLOBOS];
-                        float C[MAXLOBOS];
-                        float posicionSiguiente[MAXLOBOS];
-                        float solucion = 0.0;
-                        unsigned int hilo_seed = seed + thread;
+                        float A[MAXWOLVES];
+                        float C[MAXWOLVES];
+                        float next_position[MAXWOLVES];
+                        float solution = 0.0;
+                        unsigned int thread_seed = seed + thread;
                                 
-                        for (int i = 0; i < MAXLOBOS; i++){
+                        for (int i = 0; i < MAXWOLVES; i++){
 
-                            unsigned int seed1 = hilo_seed ^ (i * 2654435761U) ^ (hilo_seed >> 13);
-                            unsigned int seed2 = hilo_seed ^ ((i + MAXLOBOS) * 2246822519U) ^ (hilo_seed << 7);
+                            unsigned int seed1 = thread_seed ^ (i * 2654435761U) ^ (thread_seed >> 13);
+                            unsigned int seed2 = thread_seed ^ ((i + MAXWOLVES) * 2246822519U) ^ (thread_seed << 7);
                         
                             float r1 = xorshift32(seed1);
                             float r2 = xorshift32(seed2);
@@ -690,79 +687,76 @@ class GWO:
                             C[i] = 2 * a * r2 - a;
                         }   
                                 
-                        for (int i = 0; i < MAXLOBOS; i++){
+                        for (int i = 0; i < MAXWOLVES; i++){
                                 
-                            float posicionLoboActual = posicionesLobos[thread + (numeroPesos * i)];
-                            float posicionPresa = posiciones[thread];
+                            float current_wolf_position = wolves_positions[thread + (weights_number * i)];
+                            float prey_position = positions[thread];
 
-                            posicionSiguiente[i] = fabs(C[i] * posicionLoboActual - posicionPresa);
-                            float X = posicionLoboActual - A[i] * posicionSiguiente[i];
+                            next_position[i] = fabs(C[i] * current_wolf_position - prey_position);
+                            float X = current_wolf_position - A[i] * next_position[i];
                             X *= loss[i];
-                            solucion += X;
+                            solution += X;
                         }
                                 
-                        solucion /= MAXLOBOS;
-                        posiciones[thread] = 1 / (1 + exp(-solucion));
-                        posicionesNoRound[thread] = posiciones[thread];
+                        solution /= MAXWOLVES;
+                        positions[thread] = 1 / (1 + exp(-solution));
+                        round_positions[thread] = positions[thread];
         
-                        if(posiciones[thread] < limiteInferior){
+                        if(positions[thread] < lower_bound){
 
-                            posicionesNoRound[thread] = limiteInferior;            
+                            round_positions[thread] = lower_bound;            
                         }
-                        else if(posiciones[thread] > limiteSuperior){
+                        else if(positions[thread] > upper_bound){
                                     
-                            posicionesNoRound[thread] = limiteSuperior;
+                            round_positions[thread] = upper_bound;
                         }    
 
-                        if (posiciones[thread] < 0.5) {
-                            posiciones[thread] = 0;
+                        if (positions[thread] < 0.5) {
+                            positions[thread] = 0;
                         } 
                         else {
-                            posiciones[thread] = 1;
+                            positions[thread] = 1;
                         }                     
                     }
                 }
                 """)
 
                 # Inicializar y ejecutar el kernel
-                actualizar_posiciones = mod.get_function("actualizar")
+                update_positions = mod.get_function("actualizar")
                 block = 1024
-                grid = (pesos + block - 1) // block
-                seed = self.generarSemilla()
+                grid = (weights + block - 1) // block
+                seed = self.get_seed()
 
-                actualizar_posiciones(distanciaPosiciones, perdidaNormalizada, distanciaPosicionesNoRound, distanciaPosicionLobos, np.float32(a), np.int32(pesos), 
-                                      np.float32(self.limiteInferior),  np.float32(self.limiteSuperior), seed, block=(block, 1, 1), grid=(grid, 1))
+                update_positions(positions_distance, normalized_loss, positions_distance, positions_distance_wolves, np.float32(a), np.int32(weights), 
+                                      np.float32(self.lower_bound),  np.float32(self.upper_bound), seed, block=(block, 1, 1), grid=(grid, 1))
 
                 # Recuperamos los datos desde la GPU
 
-                cuda.memcpy_dtoh(posiciones, distanciaPosiciones)
-                cuda.memcpy_dtoh(posicionesNoRound, distanciaPosicionesNoRound)
+                cuda.memcpy_dtoh(positions, positions_distance)
+                cuda.memcpy_dtoh(round_positions, positions_distance)
 
-                self.positions[i] = posiciones
-                self.positionsNoRound[i] = posicionesNoRound
+                self.round_positions[i] = positions
+                self.positions[i] = round_positions
 
-                numeroFeatures = 0
+                number_features = 0
 
-                for feature in self.positions[i]:
+                for feature in self.round_positions[i]:
                     if(feature == 1):
-                        numeroFeatures += 1
+                        number_features += 1
 
-                self.numberFeatures[i] = numeroFeatures
+                self.number_features[i] = number_features
 
-                tiempoFinal = time.time()
-                print(f"Explotación {i + 1} / {self.numeroAgentes} tiempo de ejecución: {tiempoFinal - tiempoInicial} segundos")
+                final_time = time.time()
+                print(f"Explotación {i + 1} / {self.agents} tiempo de ejecución: {final_time - inicial_time} segundos")
 
-    def generarSemilla(self):
-        # Estrategia 1: Entropía del sistema operativo con os.urandom
-        entropia = int.from_bytes(os.urandom(4), byteorder='big')
+    def get_seed(self):
+
+        operative_sistem_entropy = int.from_bytes(os.urandom(4), byteorder='big')
         
-        # Estrategia 2: Tiempo en nanosegundos combinado con hash
-        tiempoActual = time.time_ns()
-        tiempoHash = int(hashlib.sha256(str(tiempoActual).encode()).hexdigest(), 16)
+        current_time = time.time_ns()
+        hash_time = int(hashlib.sha256(str(current_time).encode()).hexdigest(), 16)
         
-        # Estrategia 3: Generador aleatorio de NumPy sin depender del tiempo
-        numeroAleatorio = np.random.randint(0, 2**32, dtype=np.uint32)
+        random_number = np.random.randint(0, 2**32, dtype=np.uint32)
         
-        # Combinar las tres fuentes
-        semilla = (entropia ^ tiempoHash ^ numeroAleatorio) % (2**32)
+        semilla = (operative_sistem_entropy ^ hash_time ^ random_number) % (2**32)
         return np.uint32(semilla)
