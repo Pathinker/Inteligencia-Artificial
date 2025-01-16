@@ -39,11 +39,11 @@ class GWO:
         self.features = None
         self.number_features = None
         self.weights_structure = None
-        self.number_weight = None
+        self.number_weights = None
 
         for wolf in range(self.wolves - 3):
 
-            self.wolves_name[wolf + 3] = (f"Omega {i + 1}")
+            self.wolves_name[wolf + 3] = (f"Omega {wolf + 1}")
 
         if(feature_selection is None):
 
@@ -70,7 +70,7 @@ class GWO:
         self.round_positions = np.zeros((agents, self.number_weights))
         self.number_features = np.zeros((agents))
         self.wolves_positions = np.zeros((self.wolves, self.number_weights))
-        self.number_featuresLobos = np.zeros((self.wolves))
+        self.number_features_wolves = np.zeros((self.wolves))
 
         self.loss = np.full(self.wolves, np.finfo(np.float64).max)
         self.accuracy = np.zeros((self.wolves))
@@ -150,7 +150,7 @@ class GWO:
             random_weights = np.random.uniform(self.lower_bound, self.upper_bound)
             position.append(random_weights)
 
-        for i in range(self.number_weight):
+        for i in range(self.number_weights):
 
             sigmoid = 1 / (1 + np.exp(position[i]))
 
@@ -305,7 +305,7 @@ class GWO:
             accuracy += accuracy_batch
             total += 1
         
-        loss = alfa * loss + beta * (self.number_features[epoch] / self.number_weight)
+        loss = alfa * loss + beta * (self.number_features[epoch] / self.number_weights)
 
         print(f"Loss: {loss/total}, Accuracy: {accuracy / total}, Features = {self.number_features[epoch]}")
         return (loss / total), (accuracy / total), self.number_features[epoch]
@@ -387,7 +387,7 @@ class GWO:
                     correct_predictions.append(0)
             
             accuracy = sum(correct_predictions) / len(correct_predictions)
-            weighted_loss = alfa * weighted_loss + beta * (self.number_features[epoch] / self.number_weight)
+            weighted_loss = alfa * weighted_loss + beta * (self.number_features[epoch] / self.number_weights)
             
             return weighted_loss, accuracy
         
@@ -431,7 +431,7 @@ class GWO:
                 self.loss_log[i][epoch] = self.loss[i]
                 self.validation_accuracy_log[i][epoch] = self.validation_accuracy[i]
                 self.validation_loss_log[i][epoch] = self.validation_loss[i] 
-                self.number_features_log[i][epoch] = self.number_featuresLobos[i]           
+                self.number_features_log[i][epoch] = self.number_features_wolves[i]           
 
         for i in range(len(self.wolves_positions[0])):
 
@@ -490,7 +490,7 @@ class GWO:
             
             for i in range(self.wolves):
 
-                print(f"{self.wolves_name[i]} -> Perdida: {self.loss[i]}, Accuracy: {self.accuracy[i]}, validation_loss: {self.validation_loss[i]}, validation_accuracy: {self.validation_accuracy[i]}, Features: {self.number_featuresLobos[i]}")
+                print(f"{self.wolves_name[i]} -> Perdida: {self.loss[i]}, Accuracy: {self.accuracy[i]}, validation_loss: {self.validation_loss[i]}, validation_accuracy: {self.validation_accuracy[i]}, Features: {self.number_features_wolves[i]}")
         
     def update_wolves(self, loss, accuracy, validation_loss, validation_accuracy, number_features, positions, wolf):
 
@@ -502,7 +502,7 @@ class GWO:
                 self.accuracy[i] = accuracy
                 self.validation_loss[i] = validation_loss
                 self.validation_accuracy[i] = validation_accuracy
-                self.number_featuresLobos[i] = number_features
+                self.number_features_wolves[i] = number_features
                 self.wolves_positions[i] = positions
             
             else:
@@ -511,7 +511,7 @@ class GWO:
                 self.accuracy[i] = self.accuracy[i - 1]
                 self.validation_loss[i] = self.validation_loss[i - 1]
                 self.validation_accuracy[i] = self.validation_accuracy[i - 1] 
-                self.number_featuresLobos[i] = self.number_featuresLobos[i - 1]
+                self.number_features_wolves[i] = self.number_features_wolves[i - 1]
                 self.wolves_positions[i] = self.wolves_positions[i - 1]     
 
     def get_report(self):
@@ -558,8 +558,13 @@ class GWO:
                 seed ^= seed << 5;
                 return (seed & 0x7FFFFFFF) / float(0x7FFFFFFF); // Normalizar a rango [0, 1]
             }
-            __global__ void update(float *positions, float *wolves_positions, float a, int weights_number,
-                                        float lower_bound, float upper_bound,  unsigned int seed) {
+            __global__ void update(float *positions,
+                                   float *wolves_positions,
+                                   float a, int weights_number,
+                                   float lower_bound, 
+                                   float upper_bound,  
+                                   unsigned int seed) {
+                                   
                 int thread = blockIdx.x * blockDim.x + threadIdx.x;
                 
                 if (thread < weights_number) {
@@ -609,10 +614,16 @@ class GWO:
             update_positions = mod.get_function("update")
             block = 1024
             grid = (weights + block - 1) // block
-            seed = np.uint32(int(time.time() * 1000) % (2**32))
+            seed = self.get_seed()
 
-            update_positions(positions_distance, positions_distance_wolves, np.float32(a), np.int32(weights), np.float32(self.lower_bound), 
-                                np.float32(self.upper_bound), seed, block=(block, 1, 1), grid=(grid, 1))
+            update_positions(positions_distance,
+                            positions_distance_wolves,
+                            np.float32(a),
+                            np.int32(weights),
+                            np.float32(self.lower_bound), 
+                            np.float32(self.upper_bound),
+                            seed, block=(block, 1, 1),
+                            grid=(grid, 1))
 
             # Recuperamos los datos desde la GPU
             cuda.memcpy_dtoh(positions, positions_distance)
@@ -663,7 +674,17 @@ class GWO:
                     seed ^= seed << 5;
                     return (seed & 0x7FFFFFFF) / float(0x7FFFFFFF); // Normalizar a rango [0, 1]
                 }
-                __global__ void actualizar(float *positions, float *loss, float *round_positions, float *wolves_positions, float a, int weights_number, float lower_bound, float upper_bound, unsigned int seed) {
+                __global__ void update(float *positions, 
+                                       float *loss, 
+                                       float *round_positions,
+                                       float *wolves_positions, 
+                                       float a,
+                                        int weights_number, 
+                                       float lower_bound, 
+                                       float upper_bound, 
+                                       unsigned int seed,
+                                       unsigned int feature_probability,
+                                       unsigned int signed_feature) {
 
                     int thread = blockIdx.x * blockDim.x + threadIdx.x;
                     
@@ -673,8 +694,8 @@ class GWO:
                         float C[MAXWOLVES];
                         float next_position[MAXWOLVES];
                         float solution = 0.0;
-                        unsigned int thread_seed = seed + thread;
-                                
+                        unsigned int thread_seed = seed + thread;    
+                        
                         for (int i = 0; i < MAXWOLVES; i++){
 
                             unsigned int seed1 = thread_seed ^ (i * 2654435761U) ^ (thread_seed >> 13);
@@ -697,8 +718,18 @@ class GWO:
                             X *= loss[i];
                             solution += X;
                         }
-                                
+
                         solution /= MAXWOLVES;
+
+                        float entropy_selection = xorshift32(feature_probability) * ((fabs(lower_bound) + fabs(upper_bound)) / 2);
+                        float signed_entropy = xorshift32(signed_feature);
+
+                        if(signed_entropy < 0.5){
+
+                            entropy_selection *= -1;
+                        }
+                                
+                        solution += entropy_selection;
                         positions[thread] = 1 / (1 + exp(-solution));
                         round_positions[thread] = positions[thread];
         
@@ -722,13 +753,27 @@ class GWO:
                 """)
 
                 # Inicializar y ejecutar el kernel
-                update_positions = mod.get_function("actualizar")
+                update_positions = mod.get_function("update")
                 block = 1024
                 grid = (weights + block - 1) // block
-                seed = self.get_seed()
 
-                update_positions(positions_distance, normalized_loss, positions_distance, positions_distance_wolves, np.float32(a), np.int32(weights), 
-                                      np.float32(self.lower_bound),  np.float32(self.upper_bound), seed, block=(block, 1, 1), grid=(grid, 1))
+                seed = self.get_seed()
+                feature_probability = self.get_seed()
+                signed_feature = self.get_seed()
+
+                update_positions(positions_distance,
+                                normalized_loss,
+                                positions_distance,
+                                positions_distance_wolves,
+                                np.float32(a), 
+                                np.int32(weights), 
+                                np.float32(self.lower_bound),
+                                np.float32(self.upper_bound),
+                                seed, 
+                                feature_probability,
+                                signed_feature,
+                                block=(block, 1, 1),
+                                grid=(grid, 1))
 
                 # Recuperamos los datos desde la GPU
 

@@ -54,7 +54,7 @@ validacionDataFrame = tf.keras.utils.image_dataset_from_directory(
 
 # Cargar el modelo al volver a cargarse no tiene un tipo de entrada definida por ende es computado una sola vez debido a ser un modelo secuencial.
 
-alexnet = keras.models.load_model("weedDetectionInWheat/CNN/alexnetMetaheuristic.keras")
+alexnet = keras.models.load_model("weedDetectionInWheat/CNN/alexnetMetaheuristic.keras", custom_objects={'MaskLayer': MaskLayer})
 
 alexnet.evaluate(validacionDataFrame, verbose = 1)
 alexnet.summary()
