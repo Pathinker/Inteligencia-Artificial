@@ -10,10 +10,19 @@ for i in range(len(datos[0])):
 
     epochs.append(i + 1)
 
-plt.title("Precisión Modelo")
+plt.title("Precisión Modelo (Train Dataset)")
 plt.plot(epochs, datos[0], label = "Alfa", color = "red")
 plt.plot(epochs, datos[5], label = "Beta", color = "blue")
 plt.plot(epochs, datos[10], label = "Delta", color = "green")
+plt.xlabel("Epochs")
+plt.ylabel("Porcentaje")
+plt.legend()
+plt.show()
+
+plt.title("Precisión Modelo (Validation Dataset)")
+plt.plot(epochs, datos[2], label = "Alfa", color = "red")
+plt.plot(epochs, datos[7], label = "Beta", color = "blue")
+plt.plot(epochs, datos[12], label = "Delta", color = "green")
 plt.xlabel("Epochs")
 plt.ylabel("Porcentaje")
 plt.legend()
