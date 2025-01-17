@@ -485,7 +485,7 @@ class GWO:
                 if(loss < self.loss[i]):
 
                     print(f"Actualizacion {self.wolves_name[i]}")
-                    self.update_wolves(loss, accuracy, validation_loss, validation_accuracy, number_features, np.ravel(self.positions[n, :].copy()), i)
+                    self.update_wolves(loss, accuracy, validation_loss, validation_accuracy, number_features, np.ravel(self.round_positions[n, :].copy()), i)
                     break
             
             for i in range(self.wolves):
@@ -528,6 +528,11 @@ class GWO:
                 if(self.feature_selection is not None):
 
                     f.write(','.join(map(str, self.number_features_log[i])) + '\n')
+
+        with open('weedDetectionInWheat/CNN/MetaheuristicWeights.txt', 'w') as f:
+
+            for i in self.wolves_positions[0]:
+                f.write(str(i) + ',')  
 
     def GWO_explotation(self, epoch):
 
@@ -659,8 +664,8 @@ class GWO:
                 normalized_loss = cuda.mem_alloc(self.loss.nbytes)
                 cuda.memcpy_htod(normalized_loss, loss)
 
-                positions_distance = cuda.mem_alloc(round_positions.nbytes)
-                cuda.memcpy_htod(positions_distance, round_positions)
+                positions_distance_round = cuda.mem_alloc(round_positions.nbytes)
+                cuda.memcpy_htod(positions_distance_round, round_positions)
 
                 positions_distance_wolves= cuda.mem_alloc(posicion.nbytes)
                 cuda.memcpy_htod(positions_distance_wolves, posicion)
@@ -674,12 +679,12 @@ class GWO:
                     seed ^= seed << 5;
                     return (seed & 0x7FFFFFFF) / float(0x7FFFFFFF); // Normalizar a rango [0, 1]
                 }
-                __global__ void update(float *positions, 
+                __global__ void update(float *round_positions, 
                                        float *loss, 
-                                       float *round_positions,
+                                       float *positions,
                                        float *wolves_positions, 
                                        float a,
-                                        int weights_number, 
+                                       int weights_number, 
                                        float lower_bound, 
                                        float upper_bound, 
                                        unsigned int seed,
@@ -731,22 +736,23 @@ class GWO:
                                 
                         solution += entropy_selection;
                         positions[thread] = 1 / (1 + exp(-solution));
-                        round_positions[thread] = positions[thread];
-        
+
                         if(positions[thread] < lower_bound){
 
-                            round_positions[thread] = lower_bound;            
+                            positions[thread] = lower_bound;            
                         }
                         else if(positions[thread] > upper_bound){
                                     
-                            round_positions[thread] = upper_bound;
-                        }    
+                            positions[thread] = upper_bound;
+                        }   
 
-                        if (positions[thread] < 0.5) {
-                            positions[thread] = 0;
+                        round_positions[thread] = positions[thread];
+         
+                        if (round_positions[thread] < 0.5) {
+                            round_positions[thread] = 0;
                         } 
                         else {
-                            positions[thread] = 1;
+                            round_positions[thread] = 1;
                         }                     
                     }
                 }
@@ -778,10 +784,10 @@ class GWO:
                 # Recuperamos los datos desde la GPU
 
                 cuda.memcpy_dtoh(positions, positions_distance)
-                cuda.memcpy_dtoh(round_positions, positions_distance)
+                cuda.memcpy_dtoh(round_positions, positions_distance_round)
 
-                self.round_positions[i] = positions
-                self.positions[i] = round_positions
+                self.round_positions[i] = round_positions
+                self.positions[i] = positions
 
                 number_features = 0
 

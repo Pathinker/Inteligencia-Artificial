@@ -77,7 +77,7 @@ arquitecturaCNN.compile(
 alexnetGradiente = keras.models.load_model("weedDetectionInWheat/CNN/alexnetNormalized.keras")
 
 # Inicializar GWO con la estructura de los pesos del modelo
-gwo = GWO(model=alexnetGradiente, epochs=5, agents= 1, wolves = 1, class_weight = pesosClases, feature_selection = "flatten", ensemble_model = True)
+gwo = GWO(model=alexnetGradiente, epochs=100, agents= 10, wolves = 10, class_weight = pesosClases, feature_selection = "flatten", ensemble_model = True)
 
 # Optimizar con GWO
 alexnetGradiente = gwo.optimize_feature(dataArgumentationTrain, validacionDataFrame)
