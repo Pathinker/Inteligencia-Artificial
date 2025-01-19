@@ -6,18 +6,18 @@ from tqdm import tqdm
 
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.utils import register_keras_serializable
-from tensorflow.keras.layers import Layer, Flatten, Dense, Input
-from tensorflow.keras.models import load_model, Model
+from tensorflow.keras.utils import register_keras_serializable          # type: ignore
+from tensorflow.keras.layers import Layer, Flatten, Dense, Input        # type: ignore
+from tensorflow.keras.models import load_model, Model                   # type: ignore
 
-import pycuda.autoinit # type: ignore
-import pycuda.driver as cuda  # type: ignore
-from pycuda.compiler import SourceModule # type: ignore
+import pycuda.autoinit                          # type: ignore
+import pycuda.driver as cuda                    # type: ignore
+from pycuda.compiler import SourceModule        # type: ignore
 
-from sklearn.svm import SVC # type: ignore
-from sklearn.preprocessing import StandardScaler # type: ignore
-from sklearn.pipeline import Pipeline # type: ignore
-from sklearn.metrics import accuracy_score # type: ignore
+from sklearn.svm import SVC                             # type: ignore
+from sklearn.preprocessing import StandardScaler        # type: ignore
+from sklearn.pipeline import Pipeline                   # type: ignore
+from sklearn.metrics import accuracy_score              # type: ignore
 
 from weedDetectionInWheat.metaheuristic.customLayers.maskLayer import MaskLayer
 
@@ -42,17 +42,13 @@ class GWO:
         self.number_weights = None
 
         for wolf in range(self.wolves - 3):
-
             self.wolves_name[wolf + 3] = (f"Omega {wolf + 1}")
 
         if(feature_selection is None):
-
             self.weights_structure = model.get_weights()
             weights = self.get_number_weights()
             self.number_weights = np.uint32(weights)
-
         else:
-
             self.features = self.model.get_layer(feature_selection)
             self.input_features = self.features.get_build_config()
             self.input_shape = self.input_features["input_shape"]
@@ -61,7 +57,6 @@ class GWO:
             self.number_weights = 1
 
             for value in weights:
-
                 self.number_weights *= value
 
             self.number_weights = np.uint32(self.number_weights)
@@ -84,31 +79,23 @@ class GWO:
         self.number_features_log = np.zeros((self.wolves, self.epochs))
         
         if(feature_selection is not None):
-
             for i in range(self.agents):
-
                 self.round_positions[i], self.positions[i], self.number_features[i] = self.set_selection()
+            return      # Feature Selection Only is not neccesary to train whole model.
 
-            return
-
-        elif(transfer_learning is None):
-
-            for i in range(self.agents):
-
-                self.round_positions[i] = self.set_position()
-
-        else:
-
+        if(transfer_learning is not None):
             self.set_learning()
-
+        else:
+            for i in range(self.agents):
+                self.round_positions[i] = self.set_position()
+        
         self.set_weights(self.round_positions[0])
 
     def get_number_weights(self):
-        
+
         total_weights = 0
 
         for weights in self.weights_structure:
-
             elementos = np.prod(weights.shape)
             total_weights += elementos
 
@@ -120,7 +107,6 @@ class GWO:
         index = 0
 
         for weights in self.weights_structure:
-            
             shape = weights.shape
             size = np.prod(shape)
             new_weights.append(np.array(weights[index:index + size]).reshape(weights.shape))
@@ -132,9 +118,8 @@ class GWO:
 
         random_position = []
 
-        for w in self.weights_structure:
-
-            random_weights = np.random.uniform(self.lower_bound, self.upper_bound, w.shape)
+        for weights in self.weights_structure:
+            random_weights = np.random.uniform(self.lower_bound, self.upper_bound, weights.shape)
             random_position.append(random_weights.flatten())
 
         return np.concatenate(random_position)
@@ -143,24 +128,22 @@ class GWO:
 
         position = []
         round_position = []
-        cantidadFeatures = 0
+        number_features = 0
 
         for i in range(self.number_weights):
-
             random_weights = np.random.uniform(self.lower_bound, self.upper_bound)
             position.append(random_weights)
 
         for i in range(self.number_weights):
-
             sigmoid = 1 / (1 + np.exp(position[i]))
 
             if(sigmoid > 0.5):
-                cantidadFeatures += 1
+                number_features += 1
                 round_position.append(1)
             else:
                 round_position.append(0)
 
-        return np.array(round_position), np.array(position), cantidadFeatures
+        return np.array(round_position), np.array(position), number_features
 
     def set_mask(self, mask):
 
@@ -195,7 +178,6 @@ class GWO:
         self.transfer_learning = flattened_weights
 
         for i in range(self.agents):
-
             inicial_time = time.time()
             weights = len(self.transfer_learning)
 
@@ -216,23 +198,26 @@ class GWO:
                 seed ^= seed << 5;
                 return (seed & 0x7FFFFFFF) / float(0x7FFFFFFF) * 2;
             }
-            __global__ void update(float *positions, float *transfer_learning, int weights_number,
-                                        float lower_bound, float upper_bound,  unsigned int seed) {
+            __global__ void update(
+                float *positions,
+                float *transfer_learning,
+                int weights_number,
+                float lower_bound,
+                float upper_bound,
+                unsigned int seed
+            ){
                 int thread = blockIdx.x * blockDim.x + threadIdx.x;
                 
                 if (thread < weights_number) {
-                               
+             
                     unsigned int thread_seed = seed + thread;
                     float random = xorshift32(thread_seed);
             
                     positions[thread] = transfer_learning[thread] * random;
                                
-                    if(positions[thread] < lower_bound){
-
+                    if(positions[thread] < lower_bound) {
                         positions[thread] = lower_bound;            
-                    }
-                    else if(positions[thread] > upper_bound){
-                               
+                    } else if(positions[thread] > upper_bound) {       
                         positions[thread] = upper_bound;
                     }               
                 }
@@ -242,16 +227,24 @@ class GWO:
             update_positions = mod.get_function("update")
             block = 1024
             grid = (weights + block - 1) // block
-            seed = np.uint32(int(time.time() * 1000) % (2**32))
+            seed = self.get_seed()
 
-            update_positions(positions_distance, transfer_learning, np.int32(weights), np.float32(self.lower_bound), 
-                                np.float32(self.upper_bound), seed, block=(block, 1, 1), grid=(grid, 1))
+            update_positions(
+                            positions_distance,
+                            transfer_learning, 
+                            np.int32(weights), 
+                            np.float32(self.lower_bound), 
+                            np.float32(self.upper_bound),
+                            seed, 
+                            block=(block, 1, 1),
+                            grid=(grid, 1)
+                            )
 
             cuda.memcpy_dtoh(positions, positions_distance)
             self.round_positions[i] = positions
 
             final_time = time.time()
-            print(f"Inicialización {i + 1} / {self.agents} tiempo de ejecución: {final_time - inicial_time} segundos")
+            print(f"Initialization {i + 1} / {self.agents} Execution time: {final_time - inicial_time} seconds")
 
     def weighted_loss(self, dataset, class_weight):
 
@@ -259,12 +252,10 @@ class GWO:
         accuracy = 0.0
         total = 0
         
-        for x, y in tqdm(dataset, desc = f"Calculando Perdida", unit="batch"):
-
+        for x, y in tqdm(dataset, desc = f"Calculating Loss", unit="batch"):
             weighted_losses = []
 
             for label in y:
-
                 weight = class_weight[int(label)]
                 weighted_losses.append(weight)
 
@@ -276,10 +267,10 @@ class GWO:
             accuracy += accuracy_batch
             total += 1
 
-        print(f"loss: {loss/total}, accuracy = {accuracy / total}")
+        print(f"Loss: {loss/total}, Accuracy = {accuracy / total}")
         return (loss / total), (accuracy / total)
 
-    def loss_features(self, dataset, class_weight, epoch):
+    def loss_features(self, train_dataset, validation_dataset, class_weight, epoch):
 
         loss = 0.0
         accuracy = 0.0
@@ -288,12 +279,10 @@ class GWO:
         alfa = 0.99
         beta = 0.01
         
-        for x, y in tqdm(dataset, desc = f"Calculando Perdida", unit="batch"):
-
+        for x, y in tqdm(train_dataset, desc = f"Calculating Loss", unit="batch"):
             weighted_losses = []
 
             for i in y:
-
                 peso = class_weight[int(i)]
                 weighted_losses.append(peso)
 
@@ -306,11 +295,19 @@ class GWO:
             total += 1
         
         loss = alfa * loss + beta * (self.number_features[epoch] / self.number_weights)
+        validation_loss, validation_accuracy = self.model.evaluate(validation_dataset, verbose=1)    
 
-        print(f"Loss: {loss/total}, Accuracy: {accuracy / total}, Features = {self.number_features[epoch]}")
-        return (loss / total), (accuracy / total), self.number_features[epoch]
+        print(
+            f"Loss: {loss / total}, "
+            f"Accuracy: {accuracy / total}, "
+            f"Validation Loss: {validation_loss}, "
+            f"Validation Accuracy: {validation_accuracy}, "
+            f"Features: {self.number_features[epoch]}"
+        )
+                
+        return (loss / total), (accuracy / total), validation_loss, validation_accuracy, self.number_features[epoch]
 
-    def loss_ensemble(self, trainDataset, evaluationDataset, class_weight, epoch):
+    def loss_ensemble(self, train_dataset, validation_dataset, class_weight, epoch):
 
         inicial_time = time.time()
 
@@ -338,11 +335,9 @@ class GWO:
             labels = []
 
             for images, batch_labels in dataset:
-
-                # Extraer características de la capa flatten de cada una de las imágenes
-                batchFeatures = model(images, training=False)
-                features.append(batchFeatures.numpy())  # Convertir a numpy
-                labels.append(batch_labels.numpy())  # Obtener las etiquetas
+                batchFeatures = model(images, training=False)       # Extract all the information of convolutional layers
+                features.append(batchFeatures.numpy())
+                labels.append(batch_labels.numpy())
             
             x = np.concatenate(features)
             y = np.concatenate(labels)
@@ -350,8 +345,8 @@ class GWO:
 
             return x, y
 
-        x_train, y_train = get_convolution(trainDataset, flatten_alexnet)
-        x_validation, y_validation = get_convolution(evaluationDataset, flatten_alexnet)        
+        x_train, y_train = get_convolution(train_dataset, flatten_alexnet)
+        x_validation, y_validation = get_convolution(validation_dataset, flatten_alexnet)        
         svm.fit(x_train, y_train)
 
         def get_loss(x, y, svm, class_weight):
@@ -375,7 +370,6 @@ class GWO:
             correct_predictions = []
 
             for estimate, expected in zip(predict, y):
-
                 if(estimate > 0.5):
                     estimate = 1
                 else:
@@ -397,18 +391,23 @@ class GWO:
         final_time = time.time()
 
         print(f"Execution Time: {final_time - inicial_time} seconds")
-        print(f"Loss: {train_loss}, Accuracy: {train_accuracy}, Validation Loss: {validation_loss}, Validation Accuracy: {validation_accuracy}, Features = {self.number_features[epoch]}")
+        print(
+            f"Loss: {train_loss}, "
+            f"Accuracy: {train_accuracy}, "
+            f"Validation Loss: {validation_loss}, "
+            f"Validation Accuracy: {validation_accuracy}, "
+            f"Features:  {self.number_features[epoch]}"
+            )
+
         return train_loss, train_accuracy, validation_loss, validation_accuracy,  self.number_features[epoch] 
-                    
-    def optimize(self, datasetEntrenamiento, datasetEvaluacion):
+
+    def optimize(self, train_dataset, validation_dataset):
 
         for epoch in range(self.epochs):
-
-            self.GWO_exploration(datasetEntrenamiento, datasetEvaluacion, epoch)
+            self.GWO_exploration(train_dataset, validation_dataset, epoch)
             self.GWO_explotation(epoch)
 
             for i in range(self.wolves):
-
                 self.accuracy_log[i][epoch] = self.accuracy[i]
                 self.loss_log[i][epoch] = self.loss[i]
                 self.validation_accuracy_log[i][epoch] = self.validation_accuracy[i]
@@ -418,15 +417,13 @@ class GWO:
         self.get_report()
         return self.model
     
-    def optimize_feature(self, datasetEntrenamiento, datasetEvaluacion):
+    def optimize_feature(self, train_dataset, validation_dataset):
 
         for epoch in range(self.epochs):
-
-            self.GWO_feature_exploration(datasetEntrenamiento, datasetEvaluacion, epoch)
+            self.GWO_feature_exploration(train_dataset, validation_dataset, epoch)
             self.GWO_feature_explotation(epoch)
 
             for i in range(self.wolves):
-
                 self.accuracy_log[i][epoch] = self.accuracy[i]
                 self.loss_log[i][epoch] = self.loss[i]
                 self.validation_accuracy_log[i][epoch] = self.validation_accuracy[i]
@@ -444,69 +441,68 @@ class GWO:
         self.get_report()
         return self.model
     
-    def GWO_exploration(self, datasetEntrenamiento, datasetEvaluacion, epoch):
+    def GWO_exploration(self, train_dataset, validation_dataset, epoch):
 
         for n in range(self.agents):
-
-            print(f"Exploración Epoch {epoch + 1} / {self.epochs} (Agente {n + 1} / {self.agents})| Entrenamiento | Validación: ")
+            print(f"Exploration Epoch {epoch + 1} / {self.epochs} (Agent {n + 1} / {self.agents})| Train | Validation: ")
 
             self.set_weights(self.round_positions[n])
-            loss, accuracy = self.weighted_loss(datasetEntrenamiento, self.class_weight, n)
-            validation_loss, validation_accuracy = self.model.evaluate(datasetEvaluacion, verbose=1)    
+            loss, accuracy = self.weighted_loss(train_dataset, self.class_weight, n)
+            validation_loss, validation_accuracy = self.model.evaluate(validation_dataset, verbose=1)    
 
             for i in range(self.wolves):
-
                 if(loss < self.loss[i]):
-
-                    print(f"Actualizacion {self.wolves_name[i]}")
+                    print(f"{self.wolves_name[i]} Update")
                     self.update_wolves(loss, accuracy, validation_loss, validation_accuracy, np.ravel(self.round_positions[n, :].copy()), i)
                     break
             
             for i in range(self.wolves):
-
-                print(f"{self.wolves_name[i]} -> Perdida: {self.loss[i]}, Accuracy: {self.accuracy[i]}, validation_loss: {self.validation_loss[i]}, validation_accuracy: {self.validation_accuracy[i]}")
+                print(
+                    f"{self.wolves_name[i]} -> "
+                    f"Loss: {self.loss[i]}, "
+                    f"Accuracy: {self.accuracy[i]}, "
+                    f"Validation_Loss: {self.validation_loss[i]}, "
+                    f"Validation_Accuracy: {self.validation_accuracy[i]}"
+                    )
     
-    def GWO_feature_exploration(self, datasetEntrenamiento, datasetEvaluacion, epoch):
+    def GWO_feature_exploration(self, train_dataset, validation_dataset, epoch):
 
         for n in range(self.agents):
-
-            print(f"Exploración Epoch {epoch + 1} / {self.epochs} (Agente {n + 1} / {self.agents})| Entrenamiento | Validación: ")
+            print(f"Exploration Epoch {epoch + 1} / {self.epochs} (Agent {n + 1} / {self.agents})| Train | Validation: ")
 
             self.set_mask(self.round_positions[n])
 
             if(self.ensemble_model is None):
-                loss, accuracy, number_features = self.loss_features(datasetEntrenamiento, self.class_weight, n)
-                validation_loss, validation_accuracy = self.model.evaluate(datasetEvaluacion, verbose=1)    
+                loss, accuracy, validation_loss, validation_accuracy, number_features =  self.loss_features(train_dataset, validation_dataset, self.class_weight, n)
             else:
-                loss, accuracy, validation_loss, validation_accuracy, number_features = self.loss_ensemble(datasetEntrenamiento, datasetEvaluacion, self.class_weight, n)
+                loss, accuracy, validation_loss, validation_accuracy, number_features = self.loss_ensemble(train_dataset, validation_dataset, self.class_weight, n)
 
             for i in range(self.wolves):
-
                 if(loss < self.loss[i]):
-
-                    print(f"Actualizacion {self.wolves_name[i]}")
+                    print(f"{self.wolves_name[i]} Update")
                     self.update_wolves(loss, accuracy, validation_loss, validation_accuracy, number_features, np.ravel(self.round_positions[n, :].copy()), i)
                     break
             
             for i in range(self.wolves):
-
-                print(f"{self.wolves_name[i]} -> Perdida: {self.loss[i]}, Accuracy: {self.accuracy[i]}, validation_loss: {self.validation_loss[i]}, validation_accuracy: {self.validation_accuracy[i]}, Features: {self.number_features_wolves[i]}")
+                print(
+                    f"{self.wolves_name[i]} -> "
+                    f"Loss: {self.loss[i]}, "
+                    f"Accuracy: {self.accuracy[i]}, "
+                    f"Validation_Loss: {self.validation_loss[i]}, "
+                    f"Validation_Accuracy: {self.validation_accuracy[i]}, "
+                    f"Features: {self.number_features_wolves[i]}")
         
     def update_wolves(self, loss, accuracy, validation_loss, validation_accuracy, number_features, positions, wolf):
 
         for i in range(self.wolves - 1, wolf - 1, -1):
-
             if(i == wolf):
-
                 self.loss[i] = loss
                 self.accuracy[i] = accuracy
                 self.validation_loss[i] = validation_loss
                 self.validation_accuracy[i] = validation_accuracy
                 self.number_features_wolves[i] = number_features
                 self.wolves_positions[i] = positions
-            
             else:
-
                 self.loss[i] = self.loss[i - 1]
                 self.accuracy[i] = self.accuracy[i - 1]
                 self.validation_loss[i] = self.validation_loss[i - 1]
@@ -519,14 +515,11 @@ class GWO:
         with open('weedDetectionInWheat/CNN/MetaheuristicReport.txt', 'w') as f:
 
             for i in range(self.wolves):
-
                 f.write(','.join(map(str, self.accuracy_log[i])) + '\n') 
                 f.write(','.join(map(str, self.loss_log[i])) + '\n') 
                 f.write(','.join(map(str, self.validation_accuracy_log[i])) + '\n') 
                 f.write(','.join(map(str, self.validation_loss_log[i])) + '\n')
-
                 if(self.feature_selection is not None):
-
                     f.write(','.join(map(str, self.number_features_log[i])) + '\n')
 
         with open('weedDetectionInWheat/CNN/MetaheuristicWeights.txt', 'w') as f:
@@ -537,7 +530,6 @@ class GWO:
     def GWO_explotation(self, epoch):
 
         for i in range(self.agents):
-
             inicial_time = time.time()
             weights = len(self.round_positions[0])
 
@@ -545,8 +537,6 @@ class GWO:
 
             positions = np.array(self.round_positions[i], dtype=np.float32)
             posicion = np.array(self.wolves_positions, dtype=np.float32)
-            
-            # Alojar en  GPU
 
             positions_distance = cuda.mem_alloc(positions.nbytes)
             cuda.memcpy_htod(positions_distance, positions)
@@ -563,12 +553,14 @@ class GWO:
                 seed ^= seed << 5;
                 return (seed & 0x7FFFFFFF) / float(0x7FFFFFFF); // Normalizar a rango [0, 1]
             }
-            __global__ void update(float *positions,
-                                   float *wolves_positions,
-                                   float a, int weights_number,
-                                   float lower_bound, 
-                                   float upper_bound,  
-                                   unsigned int seed) {
+            __global__ void update(
+                float *positions,
+                float *wolves_positions,
+                float a, int weights_number,
+                float lower_bound, 
+                float upper_bound,  
+                unsigned int seed
+            ){
                                    
                 int thread = blockIdx.x * blockDim.x + threadIdx.x;
                 
@@ -580,7 +572,7 @@ class GWO:
                     float solution = 0.0;
                     unsigned int thread_seed = seed + thread;
                                
-                    for (int i = 0; i < MAXWOLVES; i++){
+                    for (int i = 0; i < MAXWOLVES; i++) {
 
                         float r1 = xorshift32(thread_seed + i);
                         float r2 = xorshift32(thread_seed + i + MAXWOLVES);
@@ -589,7 +581,7 @@ class GWO:
                         C[i] = 2 * a * r2 - a;
                     }   
                                
-                    for (int i = 0; i < MAXWOLVES; i++){
+                    for (int i = 0; i < MAXWOLVES; i++) {
                                
                         float current_wolf_position = wolves_positions[thread + (weights_number * i)];
                         float prey_position = positions[thread];
@@ -603,44 +595,40 @@ class GWO:
                                
                     positions[thread] = solution;
                                
-                    if(positions[thread] < lower_bound){
-
+                    if(positions[thread] < lower_bound) {
                         positions[thread] = lower_bound;            
-                    }
-                    else if(positions[thread] > upper_bound){
-                               
+                    } else if(positions[thread] > upper_bound) {
                         positions[thread] = upper_bound;
                     }               
                 }
             }
             """)
 
-            # Inicializar y ejecutar el kernel
             update_positions = mod.get_function("update")
             block = 1024
             grid = (weights + block - 1) // block
             seed = self.get_seed()
 
-            update_positions(positions_distance,
+            update_positions(
+                            positions_distance,
                             positions_distance_wolves,
                             np.float32(a),
                             np.int32(weights),
                             np.float32(self.lower_bound), 
                             np.float32(self.upper_bound),
                             seed, block=(block, 1, 1),
-                            grid=(grid, 1))
+                            grid=(grid, 1)
+                            )
 
-            # Recuperamos los datos desde la GPU
             cuda.memcpy_dtoh(positions, positions_distance)
             self.round_positions[i] = positions
 
             final_time = time.time()
-            print(f"Explotación {i + 1} / {self.agents} tiempo de ejecución: {final_time - inicial_time} segundos")
+            print(f"Explotation {i + 1} / {self.agents} Execution time: {final_time - inicial_time} seconds")
 
     def GWO_feature_explotation(self, epoch):
 
             for i in range(self.agents):
-
                 inicial_time = time.time()
                 weights = len(self.round_positions[0])
 
@@ -655,8 +643,6 @@ class GWO:
 
                 for i in range(self.wolves):
                     loss[i] = self.loss[i] / total_loss
-                
-                # Alojar en  GPU
 
                 positions_distance = cuda.mem_alloc(positions.nbytes)
                 cuda.memcpy_htod(positions_distance, positions)
@@ -679,17 +665,19 @@ class GWO:
                     seed ^= seed << 5;
                     return (seed & 0x7FFFFFFF) / float(0x7FFFFFFF); // Normalizar a rango [0, 1]
                 }
-                __global__ void update(float *round_positions, 
-                                       float *loss, 
-                                       float *positions,
-                                       float *wolves_positions, 
-                                       float a,
-                                       int weights_number, 
-                                       float lower_bound, 
-                                       float upper_bound, 
-                                       unsigned int seed,
-                                       unsigned int feature_probability,
-                                       unsigned int signed_feature) {
+                __global__ void update(
+                    float *round_positions, 
+                    float *loss, 
+                    float *positions,
+                    float *wolves_positions, 
+                    float a,
+                    int weights_number, 
+                    float lower_bound, 
+                    float upper_bound, 
+                    unsigned int seed,
+                    unsigned int feature_probability,
+                    unsigned int signed_feature
+                ){
 
                     int thread = blockIdx.x * blockDim.x + threadIdx.x;
                     
@@ -730,19 +718,15 @@ class GWO:
                         float signed_entropy = xorshift32(signed_feature);
 
                         if(signed_entropy < 0.5){
-
                             entropy_selection *= -1;
                         }
                                 
                         solution += entropy_selection;
                         positions[thread] = 1 / (1 + exp(-solution));
 
-                        if(positions[thread] < lower_bound){
-
+                        if(positions[thread] < lower_bound) {
                             positions[thread] = lower_bound;            
-                        }
-                        else if(positions[thread] > upper_bound){
-                                    
+                        } else if(positions[thread] > upper_bound){      
                             positions[thread] = upper_bound;
                         }   
 
@@ -750,15 +734,13 @@ class GWO:
          
                         if (round_positions[thread] < 0.5) {
                             round_positions[thread] = 0;
-                        } 
-                        else {
+                        } else {
                             round_positions[thread] = 1;
                         }                     
                     }
                 }
                 """)
 
-                # Inicializar y ejecutar el kernel
                 update_positions = mod.get_function("update")
                 block = 1024
                 grid = (weights + block - 1) // block
@@ -767,7 +749,8 @@ class GWO:
                 feature_probability = self.get_seed()
                 signed_feature = self.get_seed()
 
-                update_positions(positions_distance,
+                update_positions(
+                                positions_distance,
                                 normalized_loss,
                                 positions_distance,
                                 positions_distance_wolves,
@@ -779,9 +762,8 @@ class GWO:
                                 feature_probability,
                                 signed_feature,
                                 block=(block, 1, 1),
-                                grid=(grid, 1))
-
-                # Recuperamos los datos desde la GPU
+                                grid=(grid, 1)
+                                )
 
                 cuda.memcpy_dtoh(positions, positions_distance)
                 cuda.memcpy_dtoh(round_positions, positions_distance_round)
@@ -798,7 +780,7 @@ class GWO:
                 self.number_features[i] = number_features
 
                 final_time = time.time()
-                print(f"Explotación {i + 1} / {self.agents} tiempo de ejecución: {final_time - inicial_time} segundos")
+                print(f"Explotation {i + 1} / {self.agents} Execution time: {final_time - inicial_time} seconds.")
 
     def get_seed(self):
 
