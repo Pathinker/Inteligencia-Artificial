@@ -79,15 +79,13 @@ class GWO:
         self.number_features_log = np.zeros((self.wolves, self.epochs))
         
         if(feature_selection is not None):
-            for i in range(self.agents):
-                self.round_positions[i], self.positions[i], self.number_features[i] = self.set_selection()
+            self.set_selection()
             return      # Feature Selection Only is not neccesary to train whole model.
 
         if(transfer_learning is not None):
-            self.set_learning()
+            self.set_transfer_learning()
         else:
-            for i in range(self.agents):
-                self.round_positions[i] = self.set_position()
+            self.set_position()
         
         self.set_weights(self.round_positions[0])
 
@@ -116,34 +114,40 @@ class GWO:
 
     def set_position(self):
 
-        random_position = []
+        for i in range(self.agents):
 
-        for weights in self.weights_structure:
-            random_weights = np.random.uniform(self.lower_bound, self.upper_bound, weights.shape)
-            random_position.append(random_weights.flatten())
+            random_position = []
 
-        return np.concatenate(random_position)
+            for weights in self.weights_structure:
+                random_weights = np.random.uniform(self.lower_bound, self.upper_bound, weights.shape)
+                random_position.append(random_weights.flatten())
 
+            self.round_positions[i] = np.concatenate(random_position)
+    
     def set_selection(self):
 
-        position = []
-        round_position = []
-        number_features = 0
+        for i in range(self.agents):
 
-        for i in range(self.number_weights):
-            random_weights = np.random.uniform(self.lower_bound, self.upper_bound)
-            position.append(random_weights)
+            position = []
+            round_position = []
+            number_features = 0
 
-        for i in range(self.number_weights):
-            sigmoid = 1 / (1 + np.exp(position[i]))
+            for i in range(self.number_weights):
+                random_weights = np.random.uniform(self.lower_bound, self.upper_bound)
+                position.append(random_weights)
 
-            if(sigmoid > 0.5):
-                number_features += 1
-                round_position.append(1)
-            else:
-                round_position.append(0)
+            for i in range(self.number_weights):
+                sigmoid = 1 / (1 + np.exp(position[i]))
 
-        return np.array(round_position), np.array(position), number_features
+                if(sigmoid > 0.5):
+                    number_features += 1
+                    round_position.append(1)
+                else:
+                    round_position.append(0)
+            
+            self.round_positions[i] = np.array(round_position) 
+            self.positions[i] = np.array(position)
+            self.number_features[i] = number_features
 
     def set_mask(self, mask):
 
@@ -171,7 +175,7 @@ class GWO:
 
         self.model = custom_model
 
-    def set_learning(self):
+    def set_transfer_learning(self):
 
         self.transfer_learning= self.model.get_weights()
         flattened_weights = np.concatenate([weight.flatten() for weight in self.transfer_learning])
