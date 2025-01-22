@@ -35,6 +35,8 @@ class GWO:
         self.ensemble_model = ensemble_model
         self.upper_bound = 0.5
         self.lower_bound = -0.5
+        self.alfa = 0.99
+        self.beta = 0.01
 
         self.features = None
         self.number_features = None
@@ -315,8 +317,8 @@ class GWO:
 
         inicial_time = time.time()
 
-        alfa = 0.99
-        beta = 0.01
+        alfa = self.alfa
+        beta = self.beta
 
         layer_name = "conv2d"
         entry_layer = self.model.get_layer(layer_name)
@@ -484,7 +486,7 @@ class GWO:
             for i in range(self.wolves):
                 if(loss < self.loss[i]):
                     print(f"{self.wolves_name[i]} Update")
-                    self.update_wolves(loss, accuracy, validation_loss, validation_accuracy, number_features, np.ravel(self.round_positions[n, :].copy()), i)
+                    self.update_wolves(loss, accuracy, validation_loss, validation_accuracy, i, number_features, np.ravel(self.round_positions[n, :].copy()))
                     break
             
             for i in range(self.wolves):
@@ -496,7 +498,7 @@ class GWO:
                     f"Validation_Accuracy: {self.validation_accuracy[i]}, "
                     f"Features: {self.number_features_wolves[i]}")
         
-    def update_wolves(self, loss, accuracy, validation_loss, validation_accuracy, number_features, positions, wolf):
+    def update_wolves(self, loss, accuracy, validation_loss, validation_accuracy, wolf, number_features = None, positions = None):
 
         for i in range(self.wolves - 1, wolf - 1, -1):
             if(i == wolf):
@@ -581,7 +583,7 @@ class GWO:
                         float r1 = xorshift32(thread_seed + i);
                         float r2 = xorshift32(thread_seed + i + MAXWOLVES);
                                
-                        A[i] = 2 * a * r1 - a;
+                        A[i] = 2 * a * r1 - a; // (2 * a - a) * ()
                         C[i] = 2 * a * r2 - a;
                     }   
                                
@@ -718,7 +720,8 @@ class GWO:
 
                         solution /= MAXWOLVES;
 
-                        float entropy_selection = xorshift32(feature_probability) * ((fabs(lower_bound) + fabs(upper_bound)) / 2);
+                        float hard_limiter =  ((fabs(lower_bound) + fabs(upper_bound)) / 2) * a * (a / 2);
+                        float entropy_selection = xorshift32(feature_probability) * hard_limiter;
                         float signed_entropy = xorshift32(signed_feature);
 
                         if(signed_entropy < 0.5){

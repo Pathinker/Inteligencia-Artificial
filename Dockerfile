@@ -2,8 +2,6 @@ FROM tensorflow/tensorflow:2.18.0-gpu
 
 WORKDIR /app
 
-COPY . .
-
 RUN apt update && apt upgrade -y
 RUN apt install build-essential
 RUN apt install -y g++
