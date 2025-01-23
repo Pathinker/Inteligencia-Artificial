@@ -134,12 +134,12 @@ class GWO:
             round_position = []
             number_features = 0
 
-            for i in range(self.number_weights):
+            for j in range(self.number_weights):
                 random_weights = np.random.uniform(self.lower_bound, self.upper_bound)
                 position.append(random_weights)
 
-            for i in range(self.number_weights):
-                sigmoid = 1 / (1 + np.exp(position[i]))
+            for j in range(self.number_weights):
+                sigmoid = 1 / (1 + np.exp(position[j]))
 
                 if(sigmoid > 0.5):
                     number_features += 1
