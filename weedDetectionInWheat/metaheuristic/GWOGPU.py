@@ -721,9 +721,9 @@ class GWO:
                         solution /= MAXWOLVES;
 
                         float r1 =  a - epoch * (a / max_epochs);
-                        float r2 = xorshift32(thread_seed ^ (i * 374761393U) ^ (thread_seed << 11) ^ (i >> 5));
-                        float r3 = xorshift32(thread_seed ^ (i * 217645177U) ^ (thread_seed >> 11) ^ (i << 3));
-                        float r4 = xorshift32(thread_seed ^ (i * 2654435761U) ^ (thread_seed << 13) ^ (i >> 7));
+                        float r2 = xorshift32(thread_seed ^ (374761393U) ^ (thread_seed << 11));
+                        float r3 = xorshift32(thread_seed ^ (217645177U) ^ (thread_seed >> 11));
+                        float r4 = xorshift32(thread_seed ^ (2654435761U) ^ (thread_seed << 13));
 
                         if(r4 < 0.5) {
                             solution += (r1 * sinf(r2) * fabs(r3 * wolves_positions[thread] - solution));
