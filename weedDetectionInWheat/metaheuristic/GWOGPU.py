@@ -798,5 +798,5 @@ class GWO:
         
         random_number = np.random.randint(0, 2**32, dtype=np.uint32)
         
-        semilla = (operative_sistem_entropy ^ hash_time ^ random_number) % (2**32)
-        return np.uint32(semilla)
+        seed = (operative_sistem_entropy ^ hash_time ^ random_number) % (2**32)
+        return np.uint32(seed)
