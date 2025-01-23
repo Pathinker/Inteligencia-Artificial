@@ -681,8 +681,8 @@ class GWO:
                     float lower_bound, 
                     float upper_bound, 
                     unsigned int seed,
-                    unsigned int feature_probability,
-                    unsigned int signed_feature
+                    int epoch,
+                    int max_epochs
                 ){
 
                     int thread = blockIdx.x * blockDim.x + threadIdx.x;
@@ -720,15 +720,17 @@ class GWO:
 
                         solution /= MAXWOLVES;
 
-                        float hard_limiter =  ((fabs(lower_bound) + fabs(upper_bound)) / 2) * a * (a / 2);
-                        float entropy_selection = xorshift32(feature_probability) * hard_limiter;
-                        float signed_entropy = xorshift32(signed_feature);
+                        float r1 =  a - epoch * (a / max_epochs);
+                        float r2 = xorshift32(thread_seed ^ (i * 374761393U) ^ (thread_seed << 11) ^ (i >> 5));
+                        float r3 = xorshift32(thread_seed ^ (i * 217645177U) ^ (thread_seed >> 11) ^ (i << 3));
+                        float r4 = xorshift32(thread_seed ^ (i * 2654435761U) ^ (thread_seed << 13) ^ (i >> 7));
 
-                        if(signed_entropy < 0.5){
-                            entropy_selection *= -1;
+                        if(r4 < 0.5) {
+                            solution += (r1 * sinf(r2) * fabs(r3 * wolves_positions[thread] - solution));
+                        } else {
+                            solution += (r1 * cosf(r2) * fabs(r3 * wolves_positions[thread] - solution));
                         }
-                                
-                        solution += entropy_selection;
+
                         positions[thread] = 1 / (1 + exp(-solution));
 
                         if(positions[thread] < lower_bound) {
@@ -753,8 +755,6 @@ class GWO:
                 grid = (weights + block - 1) // block
 
                 seed = self.get_seed()
-                feature_probability = self.get_seed()
-                signed_feature = self.get_seed()
 
                 update_positions(
                                 positions_distance,
@@ -766,8 +766,8 @@ class GWO:
                                 np.float32(self.lower_bound),
                                 np.float32(self.upper_bound),
                                 seed, 
-                                feature_probability,
-                                signed_feature,
+                                np.int32(epoch),
+                                np.int32(self.epochs),
                                 block=(block, 1, 1),
                                 grid=(grid, 1)
                                 )
