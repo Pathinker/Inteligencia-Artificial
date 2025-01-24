@@ -584,7 +584,7 @@ class GWO:
                         float r2 = xorshift32(thread_seed + i + MAXWOLVES);
                                
                         A[i] = 2 * a * r1 - a; // (2 * a - a) * ()
-                        C[i] = 2 * a * r2 - a;
+                        C[i] = 2 * r2;
                     }   
                                
                     for (int i = 0; i < MAXWOLVES; i++) {
@@ -704,7 +704,7 @@ class GWO:
                             float r2 = xorshift32(seed2);
                                 
                             A[i] = 2 * a * r1 - a;
-                            C[i] = 2 * a * r2 - a;
+                            C[i] = 2 * r2;
                         }   
                                 
                         for (int i = 0; i < MAXWOLVES; i++){
