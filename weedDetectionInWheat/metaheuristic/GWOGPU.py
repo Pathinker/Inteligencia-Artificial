@@ -584,7 +584,7 @@ class GWO:
                         float r2 = xorshift32(thread_seed + i + MAXWOLVES);
                                
                         A[i] = 2 * a * r1 - a; // (2 * a - a) * ()
-                        C[i] = 2 * a * r2 - a;
+                        C[i] = 2 * r2;
                     }   
                                
                     for (int i = 0; i < MAXWOLVES; i++) {
@@ -704,7 +704,7 @@ class GWO:
                             float r2 = xorshift32(seed2);
                                 
                             A[i] = 2 * a * r1 - a;
-                            C[i] = 2 * a * r2 - a;
+                            C[i] = 2 * r2;
                         }   
                                 
                         for (int i = 0; i < MAXWOLVES; i++){
@@ -720,7 +720,8 @@ class GWO:
 
                         solution /= MAXWOLVES;
 
-                        float hard_limiter =  ((fabs(lower_bound) + fabs(upper_bound)) / 2) * a * (a / 2);
+                        float average_limiter = ((fabs(lower_bound) + fabs(upper_bound)) / 2);
+                        float hard_limiter =  average_limiter + a * average_limiter * (a / 2);
                         float entropy_selection = xorshift32(feature_probability) * hard_limiter;
                         float signed_entropy = xorshift32(signed_feature);
 
