@@ -672,10 +672,10 @@ class GWO:
                     return (seed & 0x7FFFFFFF) / float(0x7FFFFFFF); // Normalizar a rango [0, 1]
                 }
                 __global__ void update(
-                    float *round_positions, 
-                    float *loss, 
+                    float *round_positions,
                     float *positions,
                     float *wolves_positions, 
+                    float *loss, 
                     float a,
                     int weights_number, 
                     float lower_bound, 
@@ -758,10 +758,10 @@ class GWO:
                 signed_feature = self.get_seed()
 
                 update_positions(
-                                positions_distance,
-                                normalized_loss,
+                                positions_distance_round,
                                 positions_distance,
                                 positions_distance_wolves,
+                                normalized_loss,
                                 np.float32(a), 
                                 np.int32(weights), 
                                 np.float32(self.lower_bound),
