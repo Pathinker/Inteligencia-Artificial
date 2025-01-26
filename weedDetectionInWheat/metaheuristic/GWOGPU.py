@@ -128,14 +128,27 @@ class GWO:
     
     def set_selection(self):
 
-        for i in range(self.agents):
+        random_number = np.random.random(self.agents)
+        random_signed = np.random.random(self.agents)
+        average_limiter = ((np.fabs(self.lower_bound) + np.fabs(self.upper_bound)) / 2)
 
+        for i in range(len(random_number)):
+            random_number[i] *= average_limiter          
+
+            if(random_signed[i] > 0.5):
+                random_number[i] *= -1
+
+        for i in range(self.agents):
             position = []
             round_position = []
             number_features = 0
 
             for j in range(self.number_weights):
-                random_weights = np.random.uniform(self.lower_bound, self.upper_bound)
+                if(random_number[i] > 0):
+                    random_weights = np.random.uniform(self.lower_bound + random_number[i], self.upper_bound)
+                else:
+                    random_weights = np.random.uniform(self.lower_bound, self.upper_bound + random_number[i])
+                
                 position.append(random_weights)
 
             for j in range(self.number_weights):
@@ -673,9 +686,9 @@ class GWO:
                 }
                 __global__ void update(
                     float *round_positions, 
-                    float *loss, 
                     float *positions,
                     float *wolves_positions, 
+                    float *loss, 
                     float a,
                     int weights_number, 
                     float lower_bound, 
@@ -757,10 +770,10 @@ class GWO:
                 seed = self.get_seed()
 
                 update_positions(
-                                positions_distance,
-                                normalized_loss,
+                                positions_distance_round,
                                 positions_distance,
                                 positions_distance_wolves,
+                                normalized_loss,
                                 np.float32(a), 
                                 np.int32(weights), 
                                 np.float32(self.lower_bound),
