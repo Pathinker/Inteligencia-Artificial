@@ -8,3 +8,4 @@ tempCodeRunnerFile.python
 *keras
 *.txt
 *.csv
+!requirements.txt
