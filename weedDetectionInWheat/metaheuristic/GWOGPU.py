@@ -128,14 +128,27 @@ class GWO:
     
     def set_selection(self):
 
-        for i in range(self.agents):
+        random_number = np.random.random(self.agents)
+        random_signed = np.random.random(self.agents)
+        average_limiter = ((np.fabs(self.lower_bound) + np.fabs(self.upper_bound)) / 2)
 
+        for i in range(len(random_number)):
+            random_number[i] *= average_limiter          
+
+            if(random_signed[i] > 0.5):
+                random_number[i] *= -1
+
+        for i in range(self.agents):
             position = []
             round_position = []
             number_features = 0
 
             for j in range(self.number_weights):
-                random_weights = np.random.uniform(self.lower_bound, self.upper_bound)
+                if(random_number[i] > 0):
+                    random_weights = np.random.uniform(self.lower_bound + random_number[i], self.upper_bound)
+                else:
+                    random_weights = np.random.uniform(self.lower_bound, self.upper_bound + random_number[i])
+                
                 position.append(random_weights)
 
             for j in range(self.number_weights):
@@ -672,7 +685,7 @@ class GWO:
                     return (seed & 0x7FFFFFFF) / float(0x7FFFFFFF); // Normalizar a rango [0, 1]
                 }
                 __global__ void update(
-                    float *round_positions,
+                    float *round_positions, 
                     float *positions,
                     float *wolves_positions, 
                     float *loss, 
@@ -681,8 +694,8 @@ class GWO:
                     float lower_bound, 
                     float upper_bound, 
                     unsigned int seed,
-                    unsigned int feature_probability,
-                    unsigned int signed_feature
+                    int epoch,
+                    int max_epochs
                 ){
 
                     int thread = blockIdx.x * blockDim.x + threadIdx.x;
@@ -720,16 +733,17 @@ class GWO:
 
                         solution /= MAXWOLVES;
 
-                        float average_limiter = ((fabs(lower_bound) + fabs(upper_bound)) / 2);
-                        float hard_limiter =  average_limiter + a * average_limiter * (a / 2);
-                        float entropy_selection = xorshift32(feature_probability) * hard_limiter;
-                        float signed_entropy = xorshift32(signed_feature);
+                        float r1 =  a - epoch * (a / max_epochs);
+                        float r2 = xorshift32(thread_seed ^ (374761393U) ^ (thread_seed << 11));
+                        float r3 = xorshift32(thread_seed ^ (217645177U) ^ (thread_seed >> 11));
+                        float r4 = xorshift32(thread_seed ^ (2654435761U) ^ (thread_seed << 13));
 
-                        if(signed_entropy < 0.5){
-                            entropy_selection *= -1;
+                        if(r4 < 0.5) {
+                            solution += (r1 * sinf(r2) * fabs(r3 * wolves_positions[thread] - solution));
+                        } else {
+                            solution += (r1 * cosf(r2) * fabs(r3 * wolves_positions[thread] - solution));
                         }
-                                
-                        solution += entropy_selection;
+
                         positions[thread] = 1 / (1 + exp(-solution));
 
                         if(positions[thread] < lower_bound) {
@@ -754,8 +768,6 @@ class GWO:
                 grid = (weights + block - 1) // block
 
                 seed = self.get_seed()
-                feature_probability = self.get_seed()
-                signed_feature = self.get_seed()
 
                 update_positions(
                                 positions_distance_round,
@@ -767,8 +779,8 @@ class GWO:
                                 np.float32(self.lower_bound),
                                 np.float32(self.upper_bound),
                                 seed, 
-                                feature_probability,
-                                signed_feature,
+                                np.int32(epoch),
+                                np.int32(self.epochs),
                                 block=(block, 1, 1),
                                 grid=(grid, 1)
                                 )
