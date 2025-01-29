@@ -33,6 +33,12 @@ class MaskLayer(Layer):
         config.update({"mask": self.mask.tolist()})
         return config
     
+    def get_weights(self):
+        return [self.maskVariable.numpy()]
+
+    def set_weights(self, weights):
+        self.maskVariable.assign(weights[0])
+        
     @classmethod
     def from_config(cls, config):
         mask = tf.convert_to_tensor(config['mask'], dtype=tf.float32)

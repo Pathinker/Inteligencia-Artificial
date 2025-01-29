@@ -80,6 +80,7 @@ for images, etiquetas in trainDataFrame.take(1):
     output = output.flatten()
     
     frecuenciaValores = {valor: (output == valor).sum() for valor in set(output)}
-    print(frecuenciaValores)
+    frecuenciaOrdenada = dict(sorted(frecuenciaValores.items(), key=lambda item: item[1], reverse=True))
+    print(frecuenciaOrdenada)
 
     print("Pesos: \n", capaObjetivo.get_weights())
