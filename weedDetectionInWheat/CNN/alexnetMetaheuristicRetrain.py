@@ -7,6 +7,8 @@ import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
 
+import json
+
 # Añadir la carpeta necesaria para importaqr la clase alexnet
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -21,7 +23,7 @@ direccionValidamiento = direccionDataset / "valid/"
 anchoImagen = 227
 largoImagen = 227
 imgSize = [anchoImagen, largoImagen]
-batchSize = 128
+batchSize = 32
 
 trainDataFrame = tf.keras.utils.image_dataset_from_directory(
     direccionEntrenamiento,
@@ -76,30 +78,44 @@ arquitecturaCNN.compile(
 )
 
 alexnet_metaheuristic = keras.models.load_model("weedDetectionInWheat/CNN/alexnetMetaheuristic.keras")
-alexnetGradiente = keras.models.load_model("weedDetectionInWheat/CNN/alexnetMetaheuristic.keras")
+alexnetGradiente = keras.models.load_model("weedDetectionInWheat/CNN/alexnetNormalized.keras")
 
-for layer in alexnet_metaheuristic.layers:
-    layer.trainable = False
+def create_model(transfer_learning = None):
 
-flatten_layer = alexnetGradiente.get_layer(name="flatten")
-flatten_index = alexnetGradiente.layers.index(flatten_layer)
-gradiente_layers = alexnetGradiente.layers[flatten_index + 1:]
+    for layer in alexnet_metaheuristic.layers:
+            layer.trainable = False
 
-input_tensor = alexnet_metaheuristic.input
-x = alexnet_metaheuristic.get_layer(name=flatten_layer.name).output
+    x = alexnet_metaheuristic.get_layer(name="mask").output
 
-for layer in gradiente_layers:
-    x = layer(x) 
+    if(transfer_learning is None):
 
+        x = keras.layers.Dense(4096, activation="relu")(x)
+        x = keras.layers.Dropout(0.5)(x)
+        x = keras.layers.Dense(4096, activation="relu")(x)
+        x = keras.layers.Dropout(0.5)(x)
+        x = keras.layers.Dense(1000, activation="relu")(x)
+        x = keras.layers.Dense(1, activation="sigmoid")(x)
 
-new_model = Model(inputs=input_tensor, outputs=x)
-new_model.summary()
+    else:
 
-new_model.compile(
-    loss='binary_crossentropy',
-    optimizer=tf.keras.optimizers.Adam(0.001),
-    metrics=['accuracy']
-)
+        flatten_layer = alexnetGradiente.get_layer(name="flatten")
+        flatten_index = alexnetGradiente.layers.index(flatten_layer)
+        gradiente_layers = alexnetGradiente.layers[flatten_index + 1:]
+
+        for layer in gradiente_layers:
+            x = layer(x) 
+
+    new_model = Model(inputs=alexnet_metaheuristic.input, outputs=x)
+    new_model.summary()
+    new_model.compile(
+        loss='binary_crossentropy',
+        optimizer=tf.keras.optimizers.Adam(0.0001),
+        metrics=['accuracy']
+    )
+
+    return new_model
+
+new_model = create_model(transfer_learning=True)
 
 history = new_model.fit(
     dataArgumentationTrain,
@@ -109,4 +125,22 @@ history = new_model.fit(
     class_weight = pesosClases
 )
 
+with open("metaheuristic.json", "w") as f:
+    json.dump(history.history, f)
+
 new_model.save("weedDetectionInWheat/CNN/alexnet_combined.keras")
+
+new_model = create_model(transfer_learning=True)
+
+history = new_model.fit(
+    dataArgumentationTrain,
+    epochs=100,
+    validation_data=validacionDataFrame,
+    validation_freq=1,
+    class_weight = pesosClases
+)
+
+with open("metaheuristic_transfer_learning.json", "w") as f:
+    json.dump(history.history, f)
+
+new_model.save("weedDetectionInWheat/CNN/alexnet_combined_transfer_learning.keras")
