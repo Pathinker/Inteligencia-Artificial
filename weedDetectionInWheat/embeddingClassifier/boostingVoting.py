@@ -50,22 +50,25 @@ validacionDataFrame = tf.keras.utils.image_dataset_from_directory(
 
 # Cargar el modelo al volver a cargarse no tiene un tipo de entrada definida por ende es computado una sola vez debido a ser un modelo secuencial.
 
-alexnet = keras.models.load_model("weedDetectionInWheat/CNN/alexnet_combined.keras")
+alexnet = keras.models.load_model("weedDetectionInWheat/CNN/alexnetNormalized.keras")
 
 alexnet.evaluate(validacionDataFrame, verbose = 1)
 alexnet.summary()
 
 # Extraer hasta la capa flatten deseada para el entrenamiento del SVM.
 
-nombreCapa = "mask"  
+nombreCapa = "conv2d"
+capaInicial = alexnet.get_layer(nombreCapa)
+
+nombreCapa = "flatten"  
 capaObjetivo = alexnet.get_layer(nombreCapa)
 
 # Crear nuevo modelo hasta la capa flatten siendo la última convolucional.
 
-alexnetFlatten = Model(inputs = alexnet.input, outputs = capaObjetivo.output)
+alexnetFlatten = Model(inputs = capaInicial.input, outputs = capaObjetivo.output)
 alexnetFlatten.summary()
 
-pickIn = open("weedDetectionInWheat/SVM/SVMrbfBoostingMetaheuristic.sav", "rb")
+pickIn = open("weedDetectionInWheat/SVM/SVMrbfBoosting.sav", "rb")
 SVM = pickle.load(pickIn)
 pickIn.close()
 
