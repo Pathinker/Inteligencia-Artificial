@@ -1,13 +1,14 @@
 import sys
 import os
-import tensorflow as tf
-from tensorflow import keras
-from keras.models import Model
+import json
 import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-import json
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import regularizers
+from keras.models import Model
 
 # Añadir la carpeta necesaria para importaqr la clase alexnet
 
@@ -81,19 +82,17 @@ alexnet_metaheuristic = keras.models.load_model("weedDetectionInWheat/CNN/alexne
 alexnetGradiente = keras.models.load_model("weedDetectionInWheat/CNN/alexnetNormalized.keras")
 
 def create_model(transfer_learning = None):
-
     for layer in alexnet_metaheuristic.layers:
             layer.trainable = False
 
     x = alexnet_metaheuristic.get_layer(name="mask").output
 
     if(transfer_learning is None):
-
-        x = keras.layers.Dense(4096, activation="relu")(x)
+        x = keras.layers.Dense(4096, activation="relu", kernel_regularizer=regularizers.l2(0.0001))(x)
         x = keras.layers.Dropout(0.5)(x)
-        x = keras.layers.Dense(4096, activation="relu")(x)
+        x = keras.layers.Dense(4096, activation="relu", kernel_regularizer=regularizers.l2(0.0001))(x)
         x = keras.layers.Dropout(0.5)(x)
-        x = keras.layers.Dense(1000, activation="relu")(x)
+        x = keras.layers.Dense(1000, activation="relu", kernel_regularizer=regularizers.l2(0.0001))(x)
         x = keras.layers.Dense(1, activation="sigmoid")(x)
 
     else:
@@ -115,7 +114,7 @@ def create_model(transfer_learning = None):
 
     return new_model
 
-new_model = create_model(transfer_learning=True)
+new_model = create_model()
 
 history = new_model.fit(
     dataArgumentationTrain,
