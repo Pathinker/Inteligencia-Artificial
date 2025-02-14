@@ -79,14 +79,14 @@ for i in range(len(clasesUnicas)):
 
 print(pesosClasesDiccionario)
 
-VGG16Gradiente = keras.models.load_model("weedDetectionInWheat/CNN/VGG16.keras")
+resnetGradiente = keras.models.load_model("weedDetectionInWheat/CNN/resnet101.keras")
 
 # Inicializar GWO con la estructura de los pesos del modelo
-gwo = GWO(model=VGG16Gradiente, epochs=100, agents= 10, wolves = 10, class_weight = pesosClasesDiccionario, feature_selection = "flatten", ensemble_model = True)
+gwo = GWO(model=resnetGradiente, epochs=100, agents= 10, wolves = 10, class_weight = pesosClasesDiccionario, feature_selection = "flatten", ensemble_model = True)
 
 # Optimizar con GWO
-VGG16Gradiente = gwo.optimize_feature(dataArgumentationTrain, validacionDataFrame)
+resnetGradiente = gwo.optimize_feature(dataArgumentationTrain, validacionDataFrame)
 
 # Establecer los mejores pesos encontrados al modelo    
 
-VGG16Gradiente.save('weedDetectionInWheat/CNN/VGG16Metaheuristic.keras')
+resnetGradiente.save('weedDetectionInWheat/CNN/resnet101Metaheuristic.keras')
