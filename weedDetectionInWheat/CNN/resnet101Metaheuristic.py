@@ -21,7 +21,7 @@ direccionValidamiento = direccionDataset / "valid/"
 anchoImagen = 227
 largoImagen = 227
 imgSize = [anchoImagen, largoImagen]
-batchSize = 128
+batchSize = 32
 
 trainDataFrame = tf.keras.utils.image_dataset_from_directory(
     direccionEntrenamiento,
