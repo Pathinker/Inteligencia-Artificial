@@ -326,7 +326,7 @@ class GWO:
                 
         return (loss / total), (accuracy / total), validation_loss, validation_accuracy, self.number_features[epoch]
 
-    def loss_ensemble(self, train_dataset, validation_dataset, class_weight, epoch):
+    def loss_ensemble(self, train_dataset, validation_dataset, class_weight, epoch, batch_training = None):
 
         inicial_time = time.time()
 
@@ -339,34 +339,52 @@ class GWO:
         layer_name = "mask"  
         output_layer = self.model.get_layer(layer_name)
 
-        flatten_alexnet = Model(inputs = entry_layer.input, outputs = output_layer.output)
+        flatten_model = Model(inputs = entry_layer.input, outputs = output_layer.output)
 
         svm = Pipeline([
 
             ("scaler", StandardScaler()),
-            ("svm", SVC(C = 1, kernel = "rbf", gamma = "scale", verbose = True))
+            ("svm", SVC(C = 1, kernel = "rbf", gamma = "scale", verbose = batch_training is None))
 
         ])
 
-        def get_convolution(dataset, model):
+        def get_svm_dataset(dataset, model):
   
             features = []
             labels = []
 
-            for images, batch_labels in dataset:
-                batchFeatures = model(images, training=False)       # Extract all the information of convolutional layers
-                features.append(batchFeatures.numpy())
-                labels.append(batch_labels.numpy())
-            
+            for images, tag in dataset:
+                batch_features, batch_labels = get_convolution(images, tag, model)
+                features.append(batch_features)
+                labels.append(batch_labels)
+                  
             x = np.concatenate(features)
             y = np.concatenate(labels)
             y = y.ravel()
 
             return x, y
+        
+        def get_convolution(x, y, model):
 
-        x_train, y_train = get_convolution(train_dataset, flatten_alexnet)
-        x_validation, y_validation = get_convolution(validation_dataset, flatten_alexnet)        
-        svm.fit(x_train, y_train)
+            convolution = model(x, training = False)
+            features = convolution.numpy()
+            labels = y.numpy()
+
+            return features, labels
+
+        x_train, y_train = get_svm_dataset(train_dataset, flatten_model)
+        x_validation, y_validation = get_svm_dataset(validation_dataset, flatten_model)
+
+
+        if(batch_training is None):
+            svm.fit(x_train, y_train)
+        else:
+            for images, tag in tqdm(train_dataset, desc = "Training SVM", unit = "batch"):
+                features, labels = get_convolution(images, tag, flatten_model)
+                labels = labels.ravel()
+
+                if(len(np.unique(labels)) > 1):
+                    svm.fit(features, labels)
 
         def get_loss(x, y, svm, class_weight):
 
@@ -494,7 +512,7 @@ class GWO:
             if(self.ensemble_model is None):
                 loss, accuracy, validation_loss, validation_accuracy, number_features =  self.loss_features(train_dataset, validation_dataset, self.class_weight, n)
             else:
-                loss, accuracy, validation_loss, validation_accuracy, number_features = self.loss_ensemble(train_dataset, validation_dataset, self.class_weight, n)
+                loss, accuracy, validation_loss, validation_accuracy, number_features = self.loss_ensemble(train_dataset, validation_dataset, self.class_weight, n, True)
 
             for i in range(self.wolves):
                 if(loss < self.loss[i]):
