@@ -170,16 +170,7 @@ class GWO:
         output_layer = self.model.get_layer('flatten').output
 
         mask_layer = MaskLayer(mask=mask)(output_layer)
-
         output_layer = mask_layer
-        feature_selection_layers = False 
-
-        for layer in self.model.layers:
-            if layer.name == 'dense':
-                feature_selection_layers = True
-            if feature_selection_layers:
-                output_layer = layer(output_layer)
-
         custom_model = Model(inputs=entry_layer, outputs=output_layer)
 
         custom_model.compile(
@@ -374,7 +365,6 @@ class GWO:
 
         x_train, y_train = get_svm_dataset(train_dataset, flatten_model)
         x_validation, y_validation = get_svm_dataset(validation_dataset, flatten_model)
-
 
         if(batch_training is None):
             svm.fit(x_train, y_train)

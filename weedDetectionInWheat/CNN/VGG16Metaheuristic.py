@@ -77,8 +77,6 @@ clasesUnicas = np.unique(etiquetasDataset)
 for i in range(len(clasesUnicas)):
     pesosClasesDiccionario[int(clasesUnicas[i])] = float(pesosClases[i])
 
-print(pesosClasesDiccionario)
-
 VGG16Gradiente = keras.models.load_model("weedDetectionInWheat/CNN/VGG16.keras")
 
 # Inicializar GWO con la estructura de los pesos del modelo

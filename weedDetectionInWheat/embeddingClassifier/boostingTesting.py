@@ -56,15 +56,12 @@ validacionDataFrame = tf.keras.utils.image_dataset_from_directory(
 
 alexnet = keras.models.load_model("weedDetectionInWheat/CNN/alexnetMetaheuristic.keras", custom_objects={'MaskLayer': MaskLayer})
 
-alexnet.evaluate(validacionDataFrame, verbose = 1)
-alexnet.summary()
-
 # Extraer hasta la capa flatten deseada para el entrenamiento del SVM.
 
 nombreCapa = "conv2d"
 capaInicial = alexnet.get_layer(nombreCapa)
 
-nombreCapa = "mask"  
+nombreCapa = "flatten"  
 capaObjetivo = alexnet.get_layer(nombreCapa)
 
 # Crear nuevo modelo hasta la capa flatten siendo la última convolucional.
@@ -75,12 +72,13 @@ alexnetFlatten.summary()
 for images, etiquetas in trainDataFrame.take(1):
 
     imagen = images[0]
-    imagen = tf.expand_dims(imagen, axis = 0)
+    imagen = tf.expand_dims(imagen, axis=0)
     output = alexnetFlatten.predict(imagen)
     output = output.flatten()
-    
+    print("Output: ", output)
+    print("Longitud del output: ", len(output))
+
     frecuenciaValores = {valor: (output == valor).sum() for valor in set(output)}
     frecuenciaOrdenada = dict(sorted(frecuenciaValores.items(), key=lambda item: item[1], reverse=True))
-    print(frecuenciaOrdenada)
-
-    print("Pesos: \n", capaObjetivo.get_weights())
+    print("Frecuencia de valores: ", frecuenciaOrdenada)
+    print("Pesos de la capa objetivo: \n", capaObjetivo.get_weights())
