@@ -61,7 +61,7 @@ alexnet = keras.models.load_model("weedDetectionInWheat/CNN/alexnetMetaheuristic
 nombreCapa = "conv2d"
 capaInicial = alexnet.get_layer(nombreCapa)
 
-nombreCapa = "flatten"  
+nombreCapa = "mask"  
 capaObjetivo = alexnet.get_layer(nombreCapa)
 
 # Crear nuevo modelo hasta la capa flatten siendo la última convolucional.

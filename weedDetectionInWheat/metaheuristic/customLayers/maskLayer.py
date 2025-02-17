@@ -24,11 +24,11 @@ class MaskLayer(Layer):
         self.feature_dimension = int(tf.reduce_sum(self.mask).numpy())   
 
     def call(self, inputs):
-        masked_input = inputs * self.mask_variable
         
         mask_boolean = tf.cast(self.mask_variable, tf.bool)
-        mask_boolean = tf.reshape(mask_boolean, tf.shape(masked_input))
-        masked_input = tf.boolean_mask(masked_input, mask_boolean)
+        mask_boolean = tf.reshape(mask_boolean, [1, -1])
+        mask_boolean = tf.tile(mask_boolean, [tf.shape(inputs)[0], 1]) 
+        masked_input = tf.boolean_mask(inputs, mask_boolean)
 
         batch_size = tf.shape(inputs)[0] 
         return tf.reshape(masked_input, [batch_size, self.feature_dimension])

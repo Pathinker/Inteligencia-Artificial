@@ -36,7 +36,9 @@ WORKDIR /app
 
 COPY --from=builder /usr/local/cuda /usr/local/cuda
 COPY --from=builder /usr/lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu
-
+RUN ln -sf /usr/lib/x86_64-linux-gnu/libcuda.so.1.1 /usr/lib/x86_64-linux-gnu/libcuda.so.1 && \
+    ln -sf /usr/lib/x86_64-linux-gnu/libcudadebugger.so.1.1 /usr/lib/x86_64-linux-gnu/libcudadebugger.so.1
+    
 ENV CUDA_HOME=/usr/local/cuda
 ENV PATH=$CUDA_HOME/bin:$PATH
 ENV LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH

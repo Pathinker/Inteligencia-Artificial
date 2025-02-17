@@ -3,6 +3,7 @@ import os
 import pickle
 import numpy as np
 import tensorflow as tf
+import time
 from tensorflow import keras
 from pathlib import Path
 from tensorflow.keras.models import load_model # type: ignore
@@ -64,7 +65,7 @@ alexnet.summary()
 nombreCapa = "conv2d"
 capaInicial = alexnet.get_layer(nombreCapa)
 
-nombreCapa = "flatten"  
+nombreCapa = "mask"  
 capaObjetivo = alexnet.get_layer(nombreCapa)
 
 # Crear nuevo modelo hasta la capa flatten siendo la última convolucional.
@@ -100,7 +101,6 @@ xTrain, yTrain = extraerConvolucion(trainDataFrame)
 yTrain = yTrain.ravel() # Transformar a 1D
 
 # Entrenar el SVM con las características extraídas
-model.fit(xTrain, yTrain)
 
 pick = open("weedDetectionInWheat/SVM/SVMrbfBoosting.sav", "wb")
 pickle.dump(model, pick)

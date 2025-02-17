@@ -77,7 +77,7 @@ clasesUnicas = np.unique(etiquetasDataset)
 for i in range(len(clasesUnicas)):
     pesosClasesDiccionario[int(clasesUnicas[i])] = float(pesosClases[i])
 
-alexnetGradiente = keras.models.load_model("weedDetectionInWheat/CNN/alexnet.keras")
+alexnetGradiente = keras.models.load_model("weedDetectionInWheat/CNN/alexnetNormalized.keras")
     
 # Inicializar GWO con la estructura de los pesos del modelo
 gwo = GWO(model=alexnetGradiente, epochs=100, agents= 10, wolves = 10, class_weight = pesosClasesDiccionario, feature_selection = "flatten", ensemble_model = True)
