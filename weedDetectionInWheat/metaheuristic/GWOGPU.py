@@ -22,7 +22,7 @@ from sklearn.metrics import accuracy_score              # type: ignore
 from weedDetectionInWheat.metaheuristic.customLayers.maskLayer import MaskLayer
 
 class GWO:
-    def __init__(self, model, epochs=10, agents = 5,  wolves = 5, class_weight = None, transfer_learning = None, feature_selection = None, ensemble_model = None):
+    def __init__(self, model, epochs=10, agents = 5,  wolves = 5, class_weight = None, transfer_learning = None, feature_selection = None, ensemble_model = None, batch_training = None):
 
         self.model = model
         self.epochs = epochs
@@ -33,6 +33,7 @@ class GWO:
         self.transfer_learning = transfer_learning
         self.feature_selection = feature_selection
         self.ensemble_model = ensemble_model
+        self.batch_training = batch_training
         self.upper_bound = 0.5
         self.lower_bound = -0.5
         self.alfa = 0.99
@@ -502,7 +503,7 @@ class GWO:
             if(self.ensemble_model is None):
                 loss, accuracy, validation_loss, validation_accuracy, number_features =  self.loss_features(train_dataset, validation_dataset, self.class_weight, n)
             else:
-                loss, accuracy, validation_loss, validation_accuracy, number_features = self.loss_ensemble(train_dataset, validation_dataset, self.class_weight, n, True)
+                loss, accuracy, validation_loss, validation_accuracy, number_features = self.loss_ensemble(train_dataset, validation_dataset, self.class_weight, n, self.batch_training)
 
             for i in range(self.wolves):
                 if(loss < self.loss[i]):
