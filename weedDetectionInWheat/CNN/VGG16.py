@@ -152,7 +152,6 @@ VGG16 = keras.models.Sequential([
     keras.layers.Dropout(0.5),
     keras.layers.Dense(4096, activation = "relu", kernel_regularizer=regularizers.l2(0.0001)),
     keras.layers.Dropout(0.5),
-    keras.layers.Dense(1000, activation = "relu", kernel_regularizer=regularizers.l2(0.0001)),
     keras.layers.Dense(1, activation = "sigmoid") # Cambiamos la última capa de salida por una neurona y la función de activación sigmoid.
     
 ])

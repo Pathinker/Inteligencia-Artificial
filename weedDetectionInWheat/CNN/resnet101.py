@@ -135,7 +135,6 @@ def build_resnet101():
     x = resnet_block(x, filters=512, reps =3, strides=2)
     x = GlobalAvgPool2D()(x)
     x = Flatten()(x)
-    x = Dense(1000, activation = "relu", kernel_regularizer=regularizers.l2(0.0001))(x)
     output = Dense(1, activation = "sigmoid")(x)
 
     resnet101 = Model(inputs=input, outputs=output)
