@@ -96,49 +96,36 @@ alexnet = keras.models.Sequential([
 
     # Primera capa convolucional de 96 Kernels de (11, 11)
 
-    keras.layers.Conv2D(filters = 96, kernel_size = (11, 11),
-                        strides = (4, 4), activation = "relu",
-                        kernel_initializer = "he_normal",
-                        kernel_regularizer = regularizers.l2(0.0001)),
+    keras.layers.Conv2D(filters = 96, kernel_size = (11, 11),strides = (4, 4), kernel_initializer = "he_normal", kernel_regularizer = regularizers.l2(0.0001)),
     keras.layers.BatchNormalization(),
-    keras.layers.MaxPool2D(pool_size = (3, 3), strides = (2, 2),
-                           padding = "valid", data_format = None),
+    keras.layers.Activation("relu"),
+    keras.layers.MaxPool2D(pool_size = (3, 3), strides = (2, 2), padding = "valid", data_format = None),
 
     # Segunda capa convolucional de 256 Kernels de (5, 5)
 
-    keras.layers.Conv2D(filters = 256, kernel_size = (5, 5),
-                        strides = (1, 1), activation = "relu", padding = "same",
-                        kernel_initializer = "he_normal",
-                        kernel_regularizer=regularizers.l2(0.0001)),
+    keras.layers.Conv2D(filters = 256, kernel_size = (5, 5), strides = (1, 1), padding = "same", kernel_initializer = "he_normal", kernel_regularizer=regularizers.l2(0.0001)),
     keras.layers.BatchNormalization(),
-    keras.layers.MaxPool2D(pool_size = (3, 3), strides = (2, 2), 
-                           padding = "valid", data_format = None),
+    keras.layers.Activation("relu"),
+    keras.layers.MaxPool2D(pool_size = (3, 3), strides = (2, 2), padding = "valid", data_format = None),
 
     # Tercer capa convolucional de 384 Kernels de (3, 3)
 
-    keras.layers.Conv2D(filters = 384, kernel_size = (3, 3),
-                        strides = (1, 1), activation = "relu", padding = "same",
-                        kernel_initializer = "he_normal",
-                        kernel_regularizer=regularizers.l2(0.0001)),
+    keras.layers.Conv2D(filters = 384, kernel_size = (3, 3), strides = (1, 1), padding = "same", kernel_initializer = "he_normal", kernel_regularizer=regularizers.l2(0.0001)),
     keras.layers.BatchNormalization(),
+    keras.layers.Activation("relu"),
 
-    # Cuarta capa convolucional de 384 Kernels (1, 1)
+    # Cuarta capa convolucional de 384 Kernels (3, 3)
 
-    keras.layers.Conv2D(filters = 384, kernel_size = (1, 1),
-                        strides = (1, 1), activation = "relu", padding = "same",
-                        kernel_initializer = "he_normal",
-                        kernel_regularizer=regularizers.l2(0.0001)),
+    keras.layers.Conv2D(filters = 384, kernel_size = (3, 3), strides = (1, 1), padding = "same", kernel_initializer = "he_normal", kernel_regularizer=regularizers.l2(0.0001)),
     keras.layers.BatchNormalization(),
+    keras.layers.Activation("relu"),
 
-    # Quinta capa convolucional de 256 Kernels (1, 1)
+    # Quinta capa convolucional de 256 Kernels (3, 3)
 
-    keras.layers.Conv2D(filters = 256, kernel_size = (1, 1),
-                        strides = (1, 1), activation = "relu", padding = "same",
-                        kernel_initializer = "he_normal",
-                        kernel_regularizer=regularizers.l2(0.0001)),
+    keras.layers.Conv2D(filters = 256, kernel_size = (3, 3), strides = (1, 1), padding = "same", kernel_initializer = "he_normal", kernel_regularizer=regularizers.l2(0.0001)),
     keras.layers.BatchNormalization(),
-    keras.layers.MaxPool2D(pool_size = (3, 3), strides = (2, 2), 
-                           padding = "valid",data_format = None),
+    keras.layers.Activation("relu"),
+    keras.layers.MaxPool2D(pool_size = (3, 3), strides = (2, 2),  padding = "valid",data_format = None),
 
     keras.layers.Flatten(),
     keras.layers.Dense(4096, activation = "relu", kernel_regularizer=regularizers.l2(0.0001)),
