@@ -3,7 +3,7 @@ FROM tensorflow/tensorflow:2.18.0-gpu AS builder
 WORKDIR /app
 
 RUN apt update && apt upgrade -y && \
-apt install -y build-essential g++ wget python3-dev python3-setuptools libboost-python-dev libboost-thread-dev
+    apt install -y build-essential g++ wget python3-dev python3-setuptools libboost-python-dev libboost-thread-dev
 
 RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin && \
     mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600 && \
@@ -36,9 +36,9 @@ WORKDIR /app
 
 COPY --from=builder /usr/local/cuda /usr/local/cuda
 COPY --from=builder /usr/lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu
+COPY --from=builder /usr/local/cuda/lib64 /usr/local/cuda/lib64
 
-RUN ln -sf /usr/local/cuda/lib64/stubs/libcuda.so /usr/lib/x86_64-linux-gnu/libcuda.so.1 && \
-    ln -sf /usr/local/cuda/lib64/stubs/libcudadebugger.so /usr/lib/x86_64-linux-gnu/libcudadebugger.so.1
+RUN ldconfig 2>/dev/null
 
 ENV CUDA_HOME=/usr/local/cuda
 ENV PATH=$CUDA_HOME/bin:$PATH
@@ -48,5 +48,5 @@ COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 
 RUN apt-get purge -y --auto-remove && \
-rm -rf /var/lib/apt/lists/* && \
-rm -rf /app/*.deb /app/pycuda-*.tar.gz
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /app/*.deb /app/pycuda-*.tar.gz
