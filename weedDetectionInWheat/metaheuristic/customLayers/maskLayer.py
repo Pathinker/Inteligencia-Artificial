@@ -11,7 +11,7 @@ class MaskLayer(Layer):
     def __init__(self, mask=None, name="mask", **kwargs):
         super(MaskLayer, self).__init__(name=name, **kwargs)
         self.mask = np.array(mask, dtype=np.int32)
-        self.feature_dimension = None
+        self.feature_dimension = tf.reduce_sum(self.mask).numpy()
     
     def build(self, input_shape):
         self.mask_variable = self.add_weight(
@@ -20,8 +20,6 @@ class MaskLayer(Layer):
             trainable=False,
             name="mask_variable",
         )
- 
-        self.feature_dimension = int(tf.reduce_sum(self.mask).numpy())   
 
     def call(self, inputs):
         
@@ -30,8 +28,9 @@ class MaskLayer(Layer):
         mask_boolean = tf.tile(mask_boolean, [tf.shape(inputs)[0], 1]) 
         masked_input = tf.boolean_mask(inputs, mask_boolean)
 
-        batch_size = tf.shape(inputs)[0] 
-        return tf.reshape(masked_input, [batch_size, self.feature_dimension])
+        batch_size = tf.shape(inputs)[0]
+        feature_count = tf.reduce_sum(tf.cast(mask_boolean[0], tf.int32))
+        return tf.reshape(masked_input, [batch_size, feature_count])
         
     def compute_output_shape(self, input_shape):
         batch_size = input_shape[0]
