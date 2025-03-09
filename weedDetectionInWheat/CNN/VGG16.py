@@ -1,99 +1,77 @@
-import tensorflow as tf
-from tensorflow import keras
 import numpy as np
 from pathlib import Path
-from sklearn.utils.class_weight import compute_class_weight # type: ignore
+import tensorflow as tf
+from tensorflow import keras
 from tensorflow.keras.models import load_model # type: ignore
 from tensorflow.keras import regularizers # type: ignore
+from sklearn.utils.class_weight import compute_class_weight # type: ignore
 
-# Cargar el set de datos.
-
-direccionDataset = Path("weedDetectionInWheat/Dataset")
-plantas = list(direccionDataset.glob('train/docks/*'))
-direccionEntrenamiento = direccionDataset / "train/"
-direccionValidamiento = direccionDataset / "valid/"
-
-# Especificar las dimensiones de las imagenes y el tamaño de lotes.
+dataset_path = Path("weedDetectionInWheat/Dataset")
+train_path = dataset_path / "train/"
+validation_path = dataset_path / "valid/"
 
 anchoImagen = 227
 largoImagen = 227
-imgSize = [anchoImagen, largoImagen]
-batchSize = 32 
+image_size = [anchoImagen, largoImagen]
+batch_size = 24
 
-# Crear los dataframes.
-
-trainDataFrame = tf.keras.utils.image_dataset_from_directory(
-
-    direccionEntrenamiento,
-    #validation_split = 0.2, Es recomendable colocar 0.2, aunque el dataset ya se encuentra separado.
-    #subset = "training",
-    seed = 123,
-    image_size = imgSize,
-    batch_size = batchSize,
-    label_mode = "binary"
-
+train_data_frame = tf.keras.utils.image_dataset_from_directory(
+    train_path,
+    seed=123,
+    image_size=image_size,
+    batch_size=batch_size,
+    label_mode="binary"
 )
 
-validacionDataFrame = tf.keras.utils.image_dataset_from_directory(
-
-    direccionValidamiento,
-    #validation_split = 0.2, Es recomendable colocar 0.2, aunque el dataset ya se encuentra separado.
-    #subset = "training",
-    seed = 123,
-    image_size = imgSize,
-    batch_size = batchSize,
-    label_mode = "binary"
-
+validation_data_frame = tf.keras.utils.image_dataset_from_directory(
+    validation_path,
+    seed=123,
+    image_size=image_size,
+    batch_size=batch_size,
+    label_mode="binary"
 )
 
-# Tenemos una mayor presencia de una clase respecto a otra en el dataset, por ende ajustamos los pesos de las clases acorde la presencia de datos.
-
-etiquetasDataset = np.concatenate([y for x, y in trainDataFrame], axis = 0)
-
-etiquetasDataset = etiquetasDataset.flatten()
-
-pesosClases = compute_class_weight(class_weight = "balanced",
-                                   classes = np.unique(etiquetasDataset),
-                                   y = etiquetasDataset)
-
-pesosClasesDiccionario = {}
-clasesUnicas = np.unique(etiquetasDataset)
-
-for i in range(len(clasesUnicas)):
-    pesosClasesDiccionario[int(clasesUnicas[i])] = float(pesosClases[i])
-
-# Aplicar Data Argumentation en el modelo a fin de incrementar la cantidad de datos de entrenamiento.
-
-dataArgumentation = tf.keras.Sequential([
-
-    # Transformaciones Geometricas
-
+data_argumentation = tf.keras.Sequential([
     tf.keras.layers.RandomFlip("horizontal_and_vertical"),
     tf.keras.layers.RandomRotation(0.2),
     tf.keras.layers.RandomZoom(0.2),
     tf.keras.layers.RandomTranslation(0.1, 0.1),
-
-    # Transformaciones Color       
-
-    tf.keras.layers.RandomContrast(0.2),           # Ajuste del contraste
-    tf.keras.layers.RandomBrightness(0.2),         # Ajuste del brillo                               
-                                          
+    tf.keras.layers.RandomContrast(0.2),
+    tf.keras.layers.RandomBrightness(0.2),
 ])
 
-def procesarImagen(x, y):
+def apply_data_argumentation(data_frame):
 
-    return dataArgumentation(x), y
+    def process_image(x, y):
+        return data_argumentation(x), y
 
-# Modificar el dataset.
+    data_argumentation = data_frame.map(process_image)
+    labels = np.concatenate([y for x, y in train_data_frame], axis = 0)
+    labels = labels.flatten()
 
-dataArgumentationTrain = trainDataFrame.map(procesarImagen)
+    return data_argumentation, labels
 
-# Después de cada convolución es normalizado los datos e incorporado un maxpool para abstraer las características más predominantes.
+def balance_clases_dataset(labels):
+
+    class_weight = compute_class_weight(class_weight = "balanced",
+                                    classes = np.unique(labels),
+                                    y = labels)
+    unique_classes = np.unique(labels)
+    weights = {}
+
+    for i in range(len(unique_classes)):
+        weights[int(unique_classes[i])] = float(class_weight[i])
+
+    return weights
+
+train_data_argumentation, labels = apply_data_argumentation(train_data_frame)
+class_weights =  balance_clases_dataset(labels)
 
 VGG16 = keras.models.Sequential([
-
     keras.layers.Input(shape=(227, 227, 3)),
 
+    # First convolutional layer
+
     keras.layers.Conv2D(64, (3, 3), padding="same", kernel_regularizer=regularizers.l2(0.0001)),
     keras.layers.BatchNormalization(),
     keras.layers.Activation("relu"),
@@ -102,7 +80,7 @@ VGG16 = keras.models.Sequential([
     keras.layers.Activation("relu"),
     keras.layers.MaxPool2D(pool_size=(2, 2), strides=(2, 2), padding="same"),
 
-    # Segunda capa convolucional
+    # Second convolutional layer
     keras.layers.Conv2D(128, (3, 3), padding="same", kernel_regularizer=regularizers.l2(0.0001)),
     keras.layers.BatchNormalization(),
     keras.layers.Activation("relu"),
@@ -111,7 +89,7 @@ VGG16 = keras.models.Sequential([
     keras.layers.Activation("relu"),
     keras.layers.MaxPool2D(pool_size=(2, 2), strides=(2, 2), padding="same"),
 
-    # Tercera capa convolucional
+    # Third convolutional layer
     keras.layers.Conv2D(256, (3, 3), padding="same", kernel_regularizer=regularizers.l2(0.0001)),
     keras.layers.BatchNormalization(),
     keras.layers.Activation("relu"),
@@ -123,7 +101,7 @@ VGG16 = keras.models.Sequential([
     keras.layers.Activation("relu"),
     keras.layers.MaxPool2D(pool_size=(2, 2), strides=(2, 2), padding="same"),
 
-    # Cuarta capa convolucional
+    # Fourth convolutional layer
     keras.layers.Conv2D(512, (3, 3), padding="same", kernel_regularizer=regularizers.l2(0.0001)),
     keras.layers.BatchNormalization(),
     keras.layers.Activation("relu"),
@@ -135,7 +113,7 @@ VGG16 = keras.models.Sequential([
     keras.layers.Activation("relu"),
     keras.layers.MaxPool2D(pool_size=(2, 2), strides=(2, 2), padding="same"),
 
-    # Quinta capa convolucional
+    # Fifth convolutional layer
     keras.layers.Conv2D(512, (3, 3), padding="same", kernel_regularizer=regularizers.l2(0.0001)),
     keras.layers.BatchNormalization(),
     keras.layers.Activation("relu"),
@@ -152,13 +130,12 @@ VGG16 = keras.models.Sequential([
     keras.layers.Dropout(0.5),
     keras.layers.Dense(4096, activation = "relu", kernel_regularizer=regularizers.l2(0.0001)),
     keras.layers.Dropout(0.5),
-    keras.layers.Dense(1, activation = "sigmoid") # Cambiamos la última capa de salida por una neurona y la función de activación sigmoid.
+    keras.layers.Dense(1, activation = "sigmoid")
     
 ])
 
 VGG16.compile(
-
-    loss='binary_crossentropy', # Es cambiado el método númerico de perdida, al disponer de un resultado binario es optado binary crossentropy.
+    loss='binary_crossentropy',
     optimizer=tf.keras.optimizers.Adam(0.001),
     metrics=['accuracy'] 
 )
@@ -166,21 +143,15 @@ VGG16.compile(
 VGG16.summary()
 
 history=VGG16.fit(
-    dataArgumentationTrain,
+    train_data_argumentation,
     epochs=100,
-    validation_data=validacionDataFrame,
+    validation_data=validation_data_frame,
     validation_freq=1,
-    class_weight = pesosClasesDiccionario
+    class_weight = class_weights
 )
 
-# Almacenar el modelo en la siguiente dirección relativa.
-
-VGG16.evaluate(validacionDataFrame, verbose = 1)
-
+VGG16.evaluate(validation_data_frame, verbose = 1)
 VGG16.save('weedDetectionInWheat/CNN/VGG16.keras') 
 
-# Mostrar los datos relativos al entrenamiento.
-
 VGG16.history.history.keys()
-
-print('Accuracy Score = ',np.max(history.history['val_accuracy']))
+print('Best validation accuracy score = ',np.max(history.history['val_accuracy']))

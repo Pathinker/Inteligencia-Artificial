@@ -1,10 +1,9 @@
 import sys
 import os
+import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-import numpy as np
 from pathlib import Path
-import matplotlib.pyplot as plt
 from sklearn.utils.class_weight import compute_class_weight # type: ignore
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
