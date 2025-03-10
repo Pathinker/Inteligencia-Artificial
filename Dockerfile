@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:2.18.0-gpu AS builder
+FROM tensorflow/tensorflow:2.18.0-gpu AS final
 
 WORKDIR /app
 
@@ -21,31 +21,22 @@ RUN wget https://developer.download.nvidia.com/compute/cudnn/9.3.0/local_install
     apt-get -y install cudnn && \
     rm -f cudnn-local-repo-ubuntu2404-9.3.0_1.0-1_amd64.deb
 
-RUN wget https://files.pythonhosted.org/packages/61/69/f53a6624def08348778a7407683f44c2a9adfdb0b68b9a45f8213ff66c9d/pycuda-2024.1.2.tar.gz && \
-    tar -xvzf pycuda-2024.1.2.tar.gz && \
-    cd pycuda-2024.1.2 && \
-    ./configure.py --cuda-root=/usr/local/cuda --cudadrv-lib-dir=/usr/lib --boost-inc-dir=/usr/include --boost-lib-dir=/usr/lib --boost-python-libname=boost_python-py27 --boost-thread-libname=boost_thread && \
-    make -j 4 && \
-    python setup.py install && \
-    pip install . && \
-    rm -rf pycuda-2024.1.2 pycuda-2024.1.2.tar.gz
-
-FROM tensorflow/tensorflow:2.18.0-gpu AS final
-
-WORKDIR /app
-
-COPY --from=builder /usr/local/cuda /usr/local/cuda
-COPY --from=builder /usr/lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu
-COPY --from=builder /usr/local/cuda/lib64 /usr/local/cuda/lib64
-
-RUN ldconfig 2>/dev/null
-
 ENV CUDA_HOME=/usr/local/cuda
 ENV PATH=$CUDA_HOME/bin:$PATH
 ENV LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
 
+RUN pip install --upgrade pip
+
 COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
+
+RUN wget https://files.pythonhosted.org/packages/61/69/f53a6624def08348778a7407683f44c2a9adfdb0b68b9a45f8213ff66c9d/pycuda-2024.1.2.tar.gz && \
+    tar -xvzf pycuda-2024.1.2.tar.gz && \
+    cd pycuda-2024.1.2 && \
+    ./configure.py --cuda-root=/usr/local/cuda --cudadrv-lib-dir=/usr/lib --boost-inc-dir=/usr/include --boost-lib-dir=/usr/lib --boost-python-libname=boost_python-py31 --boost-thread-libname=boost_thread && \
+    make -j 4 && \
+    python setup.py install && \
+    rm -rf pycuda-2024.1.2 pycuda-2024.1.2.tar.gz
 
 RUN apt-get purge -y --auto-remove && \
     rm -rf /var/lib/apt/lists/* && \
