@@ -52,11 +52,11 @@ def apply_data_argumentation(data_frame):
     def process_image(x, y):
         return data_argumentation(x), y
 
-    data_argumentation = data_frame.map(process_image)
+    augmented_data = data_frame.map(process_image)
     labels = np.concatenate([y for x, y in train_data_frame], axis = 0)
     labels = labels.flatten()
 
-    return data_argumentation, labels
+    return augmented_data, labels
 
 def balance_clases_dataset(labels):
 
