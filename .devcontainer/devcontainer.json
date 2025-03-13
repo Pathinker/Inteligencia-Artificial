@@ -1,0 +1,21 @@
+// Read documentation or readme.md about how to run the devconctainer.
+
+{
+    "name": "GWO-Metaheuristic",
+    "image": "pathinker/tensorflow-gpu-pycuda:2.18.0",
+    "remoteUser": "root",
+    "mounts": [
+      "source=${localWorkspaceFolder},target=/workspace,type=bind"
+    ],
+    "customizations": {
+      "vscode": {
+        "extensions": [
+          "formulahendry.code-runner",
+          "ms-python.python",
+          "ms-python.debugpy",
+          "ms-python.vscode-pylance"
+        ]
+
+      }
+    }
+}

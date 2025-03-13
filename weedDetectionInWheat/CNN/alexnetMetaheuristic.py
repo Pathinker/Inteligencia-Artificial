@@ -70,8 +70,8 @@ def balance_clases_dataset(labels):
 
 train_data_argumentation, labels = apply_data_argumentation(train_data_frame)
 class_weights =  balance_clases_dataset(labels)
-model = keras.models.load_model("weedDetectionInWheat/CNN/alexnetNormalized.keras")  # Change path to train other gradient trainned models.
+model = keras.models.load_model("weedDetectionInWheat/CNN/alexnetNormalized.keras")  # Change path to train other gradient trained models.
     
-gwo = GWO(model=model, epochs=100, agents= 10, wolves = 10, class_weight = class_weights, feature_selection = "flatten", ensemble_model = True)
+gwo = GWO(model=model, epochs=1, agents= 1, wolves = 1, class_weight = class_weights, feature_selection = "flatten", ensemble_model = True)
 model = gwo.optimize_feature(train_data_argumentation, validation_data_frame)
 model.save('weedDetectionInWheat/CNN/alexnetMetaheuristic.keras')
