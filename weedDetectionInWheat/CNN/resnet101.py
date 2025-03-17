@@ -1,25 +1,25 @@
 import numpy as np
-from pathlib import Path
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras.models import load_model # type: ignore
-from tensorflow.keras import regularizers # type: ignore
-from sklearn.utils.class_weight import compute_class_weight # type: ignore
+from pathlib import Path
+from sklearn.utils.class_weight import compute_class_weight                 # type: ignore
 
-from tensorflow.keras.models import load_model # type: ignore
-from tensorflow.keras import regularizers # type: ignore
-from tensorflow.keras.layers import Input, Conv2D, BatchNormalization
-from tensorflow.keras.layers import MaxPool2D, GlobalAvgPool2D, Flatten
-from tensorflow.keras.layers import Add, ReLU, Dense
-from tensorflow.keras import Model
+from tensorflow import keras                                                # type: ignore
+from tensorflow.keras.models import load_model                              # type: ignore
+from tensorflow.keras import regularizers                                   # type: ignore
+from tensorflow.keras.models import load_model                              # type: ignore
+from tensorflow.keras import regularizers                                   # type: ignore
+from tensorflow.keras.layers import Input, Conv2D, BatchNormalization       # type: ignore
+from tensorflow.keras.layers import MaxPool2D, GlobalAvgPool2D, Flatten     # type: ignore
+from tensorflow.keras.layers import Add, ReLU, Dense                        # type: ignore
+from tensorflow.keras import Model                                          # type: ignore
 
 dataset_path = Path("weedDetectionInWheat/Dataset")
 train_path = dataset_path / "train/"
 validation_path = dataset_path / "valid/"
 
-anchoImagen = 227
-largoImagen = 227
-image_size = [anchoImagen, largoImagen]
+image_width = 227
+image_height = 227
+image_size = [image_width, image_height]
 batch_size = 24
 
 train_data_frame = tf.keras.utils.image_dataset_from_directory(
