@@ -10,14 +10,14 @@ from tensorflow.keras.utils import register_keras_serializable          # type: 
 from tensorflow.keras.layers import Layer, Flatten, Dense, Input        # type: ignore
 from tensorflow.keras.models import load_model, Model                   # type: ignore
 
-import pycuda.autoinit                          # type: ignore
-import pycuda.driver as cuda                    # type: ignore
-from pycuda.compiler import SourceModule        # type: ignore
+import pycuda.autoinit                                                  # type: ignore
+import pycuda.driver as cuda                                            # type: ignore
+from pycuda.compiler import SourceModule                                # type: ignore
 
-from sklearn.svm import SVC                             # type: ignore
-from sklearn.preprocessing import StandardScaler        # type: ignore
-from sklearn.pipeline import Pipeline                   # type: ignore
-from sklearn.metrics import accuracy_score              # type: ignore
+from sklearn.svm import SVC                                             # type: ignore
+from sklearn.preprocessing import StandardScaler                        # type: ignore
+from sklearn.pipeline import Pipeline                                   # type: ignore
+from sklearn.metrics import accuracy_score                              # type: ignore
 
 from weedDetectionInWheat.metaheuristic.customLayers.maskLayer import MaskLayer
 
@@ -25,6 +25,7 @@ class GWO:
     def __init__(self, model, epochs=10, agents = 5,  wolves = 5, class_weight = None, transfer_learning = None, feature_selection = None, ensemble_model = None, batch_training = None):
 
         self.model = model
+        self.ORIGINAL_MODEL = model
         self.epochs = epochs
         self.agents = agents
         self.wolves = wolves
@@ -83,7 +84,7 @@ class GWO:
         
         if(feature_selection is not None):
             self.set_selection()
-            return      # Feature Selection Only is not neccesary to train whole model.
+            return      # Feature Selection Only is not necesary to train whole model.
 
         if(transfer_learning is not None):
             self.set_transfer_learning()
@@ -167,11 +168,37 @@ class GWO:
 
     def set_mask(self, mask):
 
-        entry_layer = self.model.get_layer("conv2d").input
-        output_layer = self.model.get_layer('flatten').output
+        entry_layer = self.ORIGINAL_MODEL.get_layer("conv2d").input
+        output_layer = self.ORIGINAL_MODEL.get_layer(self.feature_selection).output
 
         mask_layer = MaskLayer(mask=mask)(output_layer)
         output_layer = mask_layer
+
+        add_dense_layers = False
+        reshape_next_mask_layer = False
+
+        for layer in self.ORIGINAL_MODEL.layers:
+            if (add_dense_layers is False):
+                if(layer.name == 'flatten'):
+                    add_dense_layers = True
+                continue
+
+            if(reshape_next_mask_layer is False):
+                weights, biases = layer.get_weights()
+                indices_to_keep = np.where(np.array(mask) == 1)[0]
+
+                new_weights = weights[indices_to_keep, :].copy()
+                new_biases = biases.copy()
+
+                new_layer = layer.__class__.from_config(layer.get_config())
+                new_layer.build(input_shape=(None, int(mask.sum())))
+                new_layer.set_weights([new_weights, new_biases])
+
+                layer = new_layer                
+                reshape_next_mask_layer = True
+
+            output_layer = layer(output_layer)
+                
         custom_model = Model(inputs=entry_layer, outputs=output_layer)
 
         custom_model.compile(
