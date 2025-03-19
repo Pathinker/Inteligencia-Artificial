@@ -1,4 +1,5 @@
 import os
+import csv
 import time
 import hashlib
 import numpy as np
@@ -567,15 +568,28 @@ class GWO:
 
     def get_report(self):
 
-        with open('weedDetectionInWheat/CNN/MetaheuristicReport.txt', 'w') as f:
+        with open('weedDetectionInWheat/CNN/MetaheuristicReport.csv', mode='w', newline='') as file:
+            writer = csv.writer(file)
+            header = ['Wolf', "Epoch" 'Train Accuracy', 'Train Loss', 'Validation Accuracy', 'Validation Loss']
 
+            if self.feature_selection is not None:
+                 header.append('Number of Features')
+            writer.writerow(header)
+    
             for i in range(self.wolves):
-                f.write(','.join(map(str, self.accuracy_log[i])) + '\n') 
-                f.write(','.join(map(str, self.loss_log[i])) + '\n') 
-                f.write(','.join(map(str, self.validation_accuracy_log[i])) + '\n') 
-                f.write(','.join(map(str, self.validation_loss_log[i])) + '\n')
-                if(self.feature_selection is not None):
-                    f.write(','.join(map(str, self.number_features_log[i])) + '\n')
+                for epoch in range(self.epochs):
+                    row = [
+                        self.wolves_name[i],
+                        epoch + 1,
+                        self.accuracy_log[i][epoch],
+                        self.loss_log[i][epoch],
+                        self.validation_accuracy_log[i][epoch],
+                        self.validation_loss_log[i][epoch]
+                    ]
+                    if self.feature_selection is not None:
+                        row.append(self.number_features_log[i][epoch])
+                    
+                    writer.writerow(row)
 
         with open('weedDetectionInWheat/CNN/MetaheuristicWeights.txt', 'w') as f:
 
