@@ -16,6 +16,15 @@ Metaheuristic algorithms by approaching different biology or non-biology methods
 Taking notes of how Convolutional Neural Networks extract features before the result is selected by the dense layers the amount and quality of data could be compromise, by <b> adding a metaheuristic optimizations gray wolf on the final extracted features is perform a dimensionality reduction choosing the most relevant data</b>, the performance of the selected features are test on a support vector machine ensemble boosting model, this means the data flows from the input through the last convolution layer which is applied a metaheuristic algorithm and only trains with the remaining data a support vector machine, through epochs the selected features change according the fitness function considering the native loss function and the amount of features selections above the total.
 </p>
 
+# Hardware Requierments
+
+<p align="justify">
+<b>8 VRAM Nvidia Graphic Card:</b> Required to load and run models using hardware acceleration by GPU on TensorFlow, lower VRAM models could run lesser weighted models only with lower images per batch or get errors due data segmentation and not enough memory.
+</p>
+
+> [!CAUTION]
+> Nvidia GPU is also need it to run the parallel optimizations code applied with pycuda library that runs on Nvidia Cuda platform.
+
 # How to Install
 
 <p align="justify">

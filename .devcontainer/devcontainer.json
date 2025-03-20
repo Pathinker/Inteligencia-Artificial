@@ -32,5 +32,5 @@
         "omzPlugins": "https://github.com/zsh-users/zsh-autosuggestions.git"
       }
   },
-  "postCreateCommand": "./get_dataset.sh"
+  "postCreateCommand": "chmod +x ./get_dataset.sh && ./get_dataset.sh"
 }
