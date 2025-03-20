@@ -35,7 +35,7 @@ Download and procced a to install <a href = "https://www.docker.com"> docker des
 WSL2 is the windows subsytem for Linux, this will allow to integrate and use the kernel of many linux ditributions without need of virtual machine and being native on windows, to open it you must do the following path:
 </p>
 
-- Enable "**Virtual Machine Platform**" on windows features, could be found in "Turn Windows features on or off"
+- Enable "**Virtual Machine Platform**" on windows features, could be found in "**Turn Windows features on or off**"
 - Open windows PowerShell as an admin, then write "**wsl --install**"
 - Write and login on Ubuntu distribution as a new user, then write "**sudo apt-get update**" to download all updates.
 
