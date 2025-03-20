@@ -74,15 +74,23 @@ More information on <a href = "https://docs.nvidia.com/datacenter/cloud-native/c
 
 ## 4.- Verify Docker Installation
 
-- Go to the ubuntu distribution download on WSL2 and type "**docker --version**" if everything is all right you should see the current version of docker you got on your system.
-- Run the next docker image "**docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi**" if you see your GPU, Drivers and Cuda version everything was installed correct.
+- Go to the ubuntu distribution download on WSL2 and type "**```docker --version```**" if everything is all right you should see the current version of docker you got on your system.
+- Run the next docker image "**```docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi```**" if you see your GPU, Drivers and Cuda version everything was installed correct.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/c1109a57-f7b6-4b87-98f8-50d7c4c668fe" alt="image">
+</p>
 
 ## 5.- Run Container (Choose Environment)
+
+<p align="justify">
+Now you have two options to run the code, one being run it on the native WSL2 ubuntu terminal which is already installed or add one extension on visual studio to get a more comfortable develop environment.
+</p>
 
 ### Ubuntu Terminal
 
 <p align="justify">
-Now you have two options to run the code, one being run it on the native WSL2 ubuntu terminal which is already installed, run the next command and wait around 30 minutes to the docker image to been fully download.
+Run the next command and wait around 30 minutes to the docker image to been fully download.
 </p>
 
 ```
@@ -106,12 +114,16 @@ For now, you will need to write python3 and the complete route of files to execu
 ### Visual Studio Code
 
 <p align="justify">
-To run it on Visual Studio Code you will need to search for extensions and type "<b>Dev Containers</b>" from Microsoft, wait until it is fully operational and then do the next shortcut "<b>Ctrl + Shift + P</b>", write and click on rebuild and open container. Afterwards you will need to wait around the same time of the ubuntu terminal setup.
+To run it on Visual Studio Code you will need to search for extensions and type "<b><a href = "https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers">Dev Containers</a></b>" from Microsoft, wait until it is fully operational and then do the next shortcut "<b>Ctrl + Shift + P</b>", write and click on "<b>>Dev Containers: Rebuild and Reopen in Container</b>". Afterwards you will need to wait around the same time of the ubuntu terminal setup.
+</p>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/e5c8dd9f-792c-4b8e-9a95-9fd4aa7d2883" alt="image">
 </p>
 
 <p align="justify">
-Using the devcontianer on Visual Studio Code will provide a few extensions to enable python debugging, fast code runner buttons, access to your git SSH keys to clone and modify the repository, zsh terminal, data persistence between changes and not opening the WSL2 or Ubuntu terminal.
+Using the dev container on Visual Studio Code will provide a few extensions to enable python debugging, fast code runner buttons, access to your git SSH keys to clone and modify the repository, zsh terminal, data persistence between changes and not opening the WSL2 or Ubuntu terminal.
 </p>
 
 > [!IMPORTANT]
-> Docker engine must be running everything you want to reopen the project in both cases.
+> Docker engine must be running always if you want to reopen the project in both cases.
