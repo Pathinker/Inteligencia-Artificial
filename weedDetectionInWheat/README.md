@@ -19,20 +19,20 @@ Taking notes of how Convolutional Neural Networks extract features before the re
 # How to Install
 
 <p align="justify">
-In order to execute and replicated the results the project was virtualized through docker being necessary only to install the tools to manage the virtual envirioment, aslo a devcontainer was made for visual studio code requiring less commands and a more friendly IDE to test and play on.    
+In order to execute and replicate the results the project was virtualized through docker being necessary only to install the tools to manage the virtual environment, also a dev container was made for visual studio code requiring less commands and a more friendly IDE to test and play on.
 </p>
 
 ### 1.- Docker Desktop
 
 <p align="justify">
-Download and procced a to install <a href = "https://www.docker.com"> docker desktop </a> from the oficial website, once done enable the WSL2 connectivity currently on "<b>General</b>" and click on "<b>Use the WSL2 based engine</b>" or similar.
+Download and procced a to install <a href = "https://www.docker.com"> docker desktop </a> from the official website, once done enable the WSL2 connectivity currently on "<b>General</b>" and click on "<b>Use the WSL2 based engine</b>" or similar.
 </p>
 
 ### 2.- WSL2
 
 <p align="justify">
 
-WSL2 is the windows subsytem for Linux, this will allow to integrate and use the kernel of many linux ditributions without need of virtual machine and being native on windows, to open it you must do the following path:
+WSL2 is the windows subsystem for Linux, this will allow to integrate and use the kernel of many Linux distributions without need of virtual machine and being native on windows, to open it you must do the following path:
 </p>
 
 - Enable "**Virtual Machine Platform**" on windows features, could be found in "**Turn Windows features on or off**"
