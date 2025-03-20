@@ -25,7 +25,7 @@ In order to execute and replicated the results the project was virtualized throu
 ### 1.- Docker Desktop
 
 <p align="justify">
-Download and procced a to install <a href = "www.docker.com"> docker desktop </a> from the oficial website, once done enable the WSL2 connectivity currently on "<b>General</b>" and click on "<b>Use the WSL2 based engine</b>" or similar.
+Download and procced a to install <a href = "https://www.docker.com"> docker desktop </a> from the oficial website, once done enable the WSL2 connectivity currently on "<b>General</b>" and click on "<b>Use the WSL2 based engine</b>" or similar.
 </p>
 
 ### 2.- WSL2
