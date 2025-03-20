@@ -22,13 +22,13 @@ Taking notes of how Convolutional Neural Networks extract features before the re
 In order to execute and replicate the results the project was virtualized through docker being necessary only to install the tools to manage the virtual environment, also a dev container was made for visual studio code requiring less commands and a more friendly IDE to test and play on.
 </p>
 
-### 1.- Docker Desktop
+## 1.- Docker Desktop
 
 <p align="justify">
 Download and procced a to install <a href = "https://www.docker.com"> docker desktop </a> from the official website, once done enable the WSL2 connectivity currently on "<b>General</b>" and click on "<b>Use the WSL2 based engine</b>" or similar.
 </p>
 
-### 2.- WSL2
+## 2.- WSL2
 
 <p align="justify">
 
