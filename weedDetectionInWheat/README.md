@@ -28,7 +28,7 @@ In order to execute and replicated the results the project was virtualized throu
 
 <p align="justify">
 
-Download and procced a to install <a href = "www.docker.com/"> docker desktop </a> from the oficial website, once done enable the WSL2 connectivity currently on "General" and click on "Use the WSL2 based engine" or similar.
+Download and procced a to install <a href = "www.docker.com"> docker desktop </a> from the oficial website, once done enable the WSL2 connectivity currently on "General" and click on "Use the WSL2 based engine" or similar.
 
 </p>
 
@@ -82,7 +82,7 @@ More information on <a href = "https://docs.nvidia.com/datacenter/cloud-native/c
 - Go to the ubuntu distribucion download on WSL2 and type "docker --version" if everything is allright you should see the currently version of docker you got on your system.
 - Run the next docker image "docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi" if you see your GPU, Drivers and Cuda version everything was installed correct.
 
-## 5.- Run Container (Choose Envyroment)
+## 5.- Run Container (Choose Environment)
 
 ### Ubuntu Terminal
 
