@@ -1,11 +1,13 @@
 __pycache__/
-test.py
-alexnet.keras
-tempCodeRunnerFile.py
-tempCodeRunnerFile.python
+dataset/
 *.pickle
 *.sav
 *keras
 *.txt
 *.csv
+
+test.py
+alexnet.keras
+tempCodeRunnerFile.py
+tempCodeRunnerFile.python
 !requirements.txt
