@@ -19,11 +19,11 @@ Taking notes of how Convolutional Neural Networks extract features before the re
 # Hardware Requierments
 
 <p align="justify">
-<b>- Intel or AMD Processor:</b> The Docker image is compatible only with the AMD64 (x86_64) architecture. It could be cross-platform with ARM, but doing so would double the image size for non-targeted devices.
+$${\color{orange}- \space Intel \space or \space AMD \space Processor:}$$ The Docker image is compatible only with the AMD64 (x86_64) architecture. It could be cross-platform with ARM, but doing so would double the image size for non-targeted devices.
 </p>
 
 <p align="justify">
-<b>- 8 VRAM Nvidia Graphic Card:</b> Required to load and run models using hardware acceleration by GPU on TensorFlow, lower VRAM models could run lesser weighted models only with lower images per batch or get errors due data segmentation and not enough memory.
+$${\color{orange}- \space 8 \space VRAM \space Nvidia \space Graphic \space Card:}$$ Required to load and run models using hardware acceleration by GPU on TensorFlow, lower VRAM models could run lesser weighted models only with lower images per batch or get errors due data segmentation and not enough memory.
 </p>
 
 > [!CAUTION]
@@ -100,7 +100,7 @@ More information on <a href = "https://docs.nvidia.com/datacenter/cloud-native/c
 Now you have two options to run the code, one being run it on the native WSL2 ubuntu terminal which is already installed or add one extension on visual studio to get a more comfortable develop environment.
 </p>
 
-### Ubuntu Terminal
+### $${\color{orange}Ubuntu \space Terminal}$$
 
 <p align="justify">
 Run the next command and wait around 30 minutes to the docker image to been fully download.
@@ -124,7 +124,7 @@ For now, you will need to write python3 and the complete route of files to execu
 > [!CAUTION]
 > Note: All changes made once the program is running will be lost due the missing of a volume that shares the data among the virtual environment and the host device.
 
-### Visual Studio Code
+### $${\color{orange}Visual \space Studio \space Code}$$
 
 <p align="justify">
 To run it on Visual Studio Code you will need to search for extensions and type "<b><a href = "https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers">Dev Containers</a></b>" from Microsoft, wait until it is fully operational and then do the next shortcut "<b>Ctrl + Shift + P</b>", write and click on "<b>>Dev Containers: Rebuild and Reopen in Container</b>". Afterwards you will need to wait around the same time of the ubuntu terminal setup.
