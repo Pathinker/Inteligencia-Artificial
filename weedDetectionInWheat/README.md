@@ -19,7 +19,11 @@ Taking notes of how Convolutional Neural Networks extract features before the re
 # Hardware Requierments
 
 <p align="justify">
-<b>8 VRAM Nvidia Graphic Card:</b> Required to load and run models using hardware acceleration by GPU on TensorFlow, lower VRAM models could run lesser weighted models only with lower images per batch or get errors due data segmentation and not enough memory.
+<b>- Intel or AMD Processor:</b> The Docker image is compatible only with the AMD64 (x86_64) architecture. It could be cross-platform with ARM, but doing so would double the image size for non-targeted devices.
+</p>
+
+<p align="justify">
+<b>- 8 VRAM Nvidia Graphic Card:</b> Required to load and run models using hardware acceleration by GPU on TensorFlow, lower VRAM models could run lesser weighted models only with lower images per batch or get errors due data segmentation and not enough memory.
 </p>
 
 > [!CAUTION]
