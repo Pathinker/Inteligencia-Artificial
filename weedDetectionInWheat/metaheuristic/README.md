@@ -4,7 +4,6 @@
 Metaheuristic algorithm chooses the most relevant features of processed data in order to improve accuracy inspired on the social hierarchy of grey wolves, takes the best solutions to explore new ones by adding entropy and randomness to find a better combination, unwrap as a dimensional reduction. All the functions require NumPy and TensorFlow data types.
 </p>
 
-
 > [!CAUTION]
 > Dimensional reduction requires to select and be at least one flatten layer.
 
@@ -43,10 +42,10 @@ $${\color{violet}GWO.set\\_position}$$()
 Initializes  the spaces of searching along the upper and lower limits with random and uniform values
 </p>
 
-$${\color{violet}GWO.set\\_seletion}$$() <!-- Somehow github won't add the Latex formata if "Select" is written. -->
+$${\color{violet}GWO.set\\_sele\color{violet}ction}$$() <!-- Somehow github won't add the Latex format if "Select" is written. -->
 
 <p align="justify"> 
-Initializes  the spaces of searching along the upper and lower limits with random and uniform values, is used sigmoid 
+Initializes the spaces of searching along the upper and lower limits with random and uniform values, is used sigmoid 
 </p>
 
 $${\color{violet}GWO.set\\_mask}$$(mask)
@@ -108,7 +107,7 @@ Performs the metaheuristic optimization into the weights of a model.
 </p>
 
 - **train_dateset:** Keras loaded train dataset to apply a predict.
-- **validation_dateset: **Keras loaded validation dataset to apply a predict.
+- **validation_dateset:** Keras loaded validation dataset to apply a predict.
 
 $${\color{orange}keras\\_model}$$ $${\color{violet}GWO.optimize\\_feature}$$(<br><br>
 	train_dataset, validation_dataset<br><br>
@@ -129,9 +128,9 @@ $${\color{violet}GWO.GWO\\_exploration}$$(<br><br>
 Computes the explorations of all spaces and updates the wolves according to their loss.
 </p>
 
-train_dateset: Keras loaded train dataset to apply a predict.
-validation_dateset: Keras loaded validation dataset to apply a predict.
-epoch: Number of actual epoch.
+**train_dateset:** Keras loaded train dataset to apply a predict.
+**validation_dateset:** Keras loaded validation dataset to apply a predict.
+**epoch:** Number of actual epoch.
 
 $${\color{violet}GWO.GWO\\_feature\\_exploration}$$(<br><br>
 	train_dataset, validation_dataset, epoch<br><br>
