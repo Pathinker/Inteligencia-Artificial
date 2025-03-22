@@ -30,7 +30,7 @@ $${\color{orange}- \space Flatten:}$$ Transform the output in one dimension vect
 $${\color{orange}- \space Dense \space Layers:}$$ Fully connected  input neurons to every single output of the next layer, each connection is called weight.
 </p>
 
-## Regulizers
+## Regularizers 
 
 <p align="justify">  
 Reduces the overfit by changing how data is generated, flows or loss function is computed.
