@@ -16,7 +16,7 @@ Metaheuristic algorithms by approaching different biology or non-biology methods
 Taking notes of how Convolutional Neural Networks extract features before the result is selected by the dense layers the amount and quality of data could be compromise, by <b> adding a metaheuristic optimizations gray wolf on the final extracted features is perform a dimensionality reduction choosing the most relevant data</b>, the performance of the selected features are test on a support vector machine ensemble boosting model, this means the data flows from the input through the last convolution layer which is applied a metaheuristic algorithm and only trains with the remaining data a support vector machine, through epochs the selected features change according the fitness function considering the native loss function and the amount of features selections above the total.
 </p>
 
-# Hardware Requierments
+# Hardware Requirements
 
 <p align="justify">
 $${\color{orange}- \space Intel \space or \space AMD \space Processor:}$$ The Docker image is compatible only with the AMD64 (x86_64) architecture. It could be cross-platform with ARM, but doing so would double the image size for non-targeted devices.
