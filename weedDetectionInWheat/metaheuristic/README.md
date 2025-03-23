@@ -21,7 +21,7 @@ $${\color{violet}GWO.init}$$(
 - **class_weight:** Dictionary of values each class has an associated number it is applied on the loss function to balance the samples of the dataset.
 - **transfer_learning:** Initializes the spaces of search from weights of a trained model, the weights are randomly multiplied by a value going to 0 - 2.
 - **feature_selection:** Name of the layer that is applied the metaheuristic optimization.
-- **ensemble_model:** Giving any kind of datatype the exploration process is done with an ensemble model such as other dense layers, SVM or KNN.
+- **ensemble_model:** Giving any kind of datatype the exploration process is done with an SVM ensemble model.
 - **batch_training:** Trains the ensemble model in batches, specially useful on large models to speed up training, however once it is finished, is recommended to pick up the optimization fund and train it without it to see the true results, due less performance by the distribution of each batch.
 
 $${\color{violet}GWO.get\\_number\\_weights}$$()
