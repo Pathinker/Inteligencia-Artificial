@@ -473,7 +473,7 @@ class GWO:
         self.get_report()
         return self.model
     
-    def optimize_feature(self, train_dataset, validation_dataset):
+    def optimize_feature(self, train_dataset, validation_dataset, retrain = None):
 
         for epoch in range(self.epochs):
             self.GWO_feature_exploration(train_dataset, validation_dataset, epoch)
@@ -495,6 +495,30 @@ class GWO:
 
         self.set_mask(self.wolves_positions[0])
         self.get_report()
+
+        if(retrain is None):
+             return self.model
+
+        freeze_training = True
+
+        for layer in self.model.layers:
+            if(layer.name == "mask"):
+                freeze_training = False
+                continue
+
+            if(freeze_training is True):
+                layer.trainable = False
+            else:
+                layer.trainable = True 
+
+        self.model.fit(
+                       train_dataset,
+                       epochs=1,
+                       validation_data=validation_dataset,
+                       validation_freq=1,
+                       class_weight = self.class_weight
+                      )       
+
         return self.model
     
     def GWO_exploration(self, train_dataset, validation_dataset, epoch):
@@ -546,7 +570,8 @@ class GWO:
                     f"Accuracy: {self.accuracy[i]}, "
                     f"Validation_Loss: {self.validation_loss[i]}, "
                     f"Validation_Accuracy: {self.validation_accuracy[i]}, "
-                    f"Features: {self.number_features_wolves[i]}")
+                    f"Features: {self.number_features_wolves[i]}"
+                    )
         
     def update_wolves(self, loss, accuracy, validation_loss, validation_accuracy, wolf, positions = None, number_features = None):
 

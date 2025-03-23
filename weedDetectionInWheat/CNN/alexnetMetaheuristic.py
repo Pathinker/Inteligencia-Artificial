@@ -73,5 +73,5 @@ class_weights =  balance_clases_dataset(labels)
 model = keras.models.load_model("weedDetectionInWheat/CNN/alexnetNormalized.keras")     # Change path to train other gradient trained models.
     
 gwo = GWO(model=model, epochs=100, agents= 10, wolves = 10, class_weight = class_weights, feature_selection = "flatten", ensemble_model = True)
-model = gwo.optimize_feature(train_data_argumentation, validation_data_frame)
+model = gwo.optimize_feature(train_data_argumentation, validation_data_frame, retrain = True)
 model.save('weedDetectionInWheat/CNN/alexnetMetaheuristic.keras')

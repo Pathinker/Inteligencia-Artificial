@@ -41,3 +41,5 @@ RUN wget https://files.pythonhosted.org/packages/61/69/f53a6624def08348778a74076
 RUN apt-get purge -y --auto-remove && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /app/*.deb /app/pycuda-*.tar.gz
+
+COPY . .

@@ -43,13 +43,12 @@ validation_data_frame = tf.keras.utils.image_dataset_from_directory(
 )
 
 neural_network = keras.models.load_model("weedDetectionInWheat/CNN/alexnetMetaheuristic.keras")     # Change path to load other trained model.
-
 neural_network.evaluate(validation_data_frame, verbose = 1)
 neural_network.summary()
 
 layer_name = "conv2d"
 initial_layer = neural_network.get_layer(layer_name)
-layer_name = "mask"  # Change output layer to compare with and without Metaheuristic Optmization.
+layer_name = "mask"     # Change output layer to compare with and without Metaheuristic Optmization.
 final_layer = neural_network.get_layer(layer_name)
 
 flatten_neural_network = Model(inputs = initial_layer.input, outputs = final_layer.output)
@@ -83,7 +82,7 @@ save_model = open("weedDetectionInWheat/SVM/SVMrbfBoosting.sav", "wb")
 pickle.dump(SVM, save_model)
 save_model.close()
 
-x_validation, y_validation = extract_convolution(validation_data_frame)
+x_validation, y_validation = extract_convolution(validation_data_frame, flatten_neural_network)
 y_validation = y_validation.ravel()
 y_predict = SVM.predict(x_validation)
 
