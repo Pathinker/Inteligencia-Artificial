@@ -110,7 +110,7 @@ Performs the metaheuristic optimization into the weights of a model.
 - **validation_dateset:** Keras loaded validation dataset to apply a predict.
 
 $${\color{orange}keras\\_model}$$ $${\color{violet}GWO.optimize\\_feature}$$(<br><br>
-	train_dataset, validation_dataset<br><br>
+	train_dataset, validation_dataset, retrain = $${\color{orange}None}$$<br><br>
 )
 
 <p align="justify"> 
@@ -119,6 +119,7 @@ Performs the metaheuristic optimization choosing the most significant qualities 
 
 - **train_dateset:** Keras loaded train dataset to apply a predict.
 - **validation_dateset:** Keras loaded validation dataset to apply a predict.
+- **retrain:** Retrain the model to adjust to the dimensionality reduction perform by the metaheuristic optimization.
 
 $${\color{violet}GWO.GWO\\_exploration}$$(<br><br>
 	train_dataset, validation_dataset, epoch<br><br>
