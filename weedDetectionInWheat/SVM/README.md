@@ -12,6 +12,16 @@ In order to generate this division, support vectors are taken into consideration
 By applying miss classification, neglecting or omitting atypical magnitudes improves the accuracy of the model. This miss classification occurs with cross-validation, where different segments of the entire dataset are taken into account to randomize the validation sampling. Implementing miss classification is certified to achieve higher overall performance at the expense of decreasing training accuracy.
 </p>
 
+## Kernels
+
+<p align="justify">
+Support Vector Machines could use different methods to get the hyperplane allowing to identify different properties on data by looking at the archiving results.
+</p>
+
+<p align="justify">
+$${\color{orange}- \space Linear \space Kernel:}$$ Performs scalar product between vectors to separate data linearly.
+</p>
+
 <p align="justify">
 $${\color{orange}- \space Polynomial \space Kernel:}$$ It uses a kernel taking into consideration two coefficients "r" conditioning the result of the dot product obtained by raising the value, the value of the coefficients is disregarded and "d" which consolidates the degree of the polynomial, both coefficients are obtained by performing a cross-validation.
 </p>
