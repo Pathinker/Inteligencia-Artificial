@@ -109,10 +109,10 @@ class GWO:
         new_weights = []
         index = 0
 
-        for weights in self.weights_structure:
-            shape = weights.shape
+        for layer_weights in self.weights_structure:
+            shape = layer_weights.shape
             size = np.prod(shape)
-            new_weights.append(np.array(weights[index:index + size]).reshape(weights.shape))
+            new_weights.append(np.array(weights[index:index + size]).reshape(shape))
             index += size
 
         self.model.set_weights(new_weights)
@@ -503,13 +503,13 @@ class GWO:
             print(f"Exploration Epoch {epoch + 1} / {self.epochs} (Agent {n + 1} / {self.agents})| Train | Validation: ")
 
             self.set_weights(self.round_positions[n])
-            loss, accuracy = self.weighted_loss(train_dataset, self.class_weight, n)
+            loss, accuracy = self.weighted_loss(train_dataset, self.class_weight)
             validation_loss, validation_accuracy = self.model.evaluate(validation_dataset, verbose=1)    
 
             for i in range(self.wolves):
                 if(loss < self.loss[i]):
                     print(f"{self.wolves_name[i]} Update")
-                    self.update_wolves(loss, accuracy, validation_loss, validation_accuracy, np.ravel(self.round_positions[n, :].copy()), i)
+                    self.update_wolves(loss, accuracy, validation_loss, validation_accuracy, i, np.ravel(self.round_positions[n, :].copy()))
                     break
             
             for i in range(self.wolves):
@@ -536,7 +536,7 @@ class GWO:
             for i in range(self.wolves):
                 if(loss < self.loss[i]):
                     print(f"{self.wolves_name[i]} Update")
-                    self.update_wolves(loss, accuracy, validation_loss, validation_accuracy, i, number_features, np.ravel(self.round_positions[n, :].copy()))
+                    self.update_wolves(loss, accuracy, validation_loss, validation_accuracy, i, np.ravel(self.round_positions[n, :].copy()), number_features)
                     break
             
             for i in range(self.wolves):
@@ -548,7 +548,7 @@ class GWO:
                     f"Validation_Accuracy: {self.validation_accuracy[i]}, "
                     f"Features: {self.number_features_wolves[i]}")
         
-    def update_wolves(self, loss, accuracy, validation_loss, validation_accuracy, wolf, number_features = None, positions = None):
+    def update_wolves(self, loss, accuracy, validation_loss, validation_accuracy, wolf, positions = None, number_features = None):
 
         for i in range(self.wolves - 1, wolf - 1, -1):
             if(i == wolf):
@@ -556,15 +556,15 @@ class GWO:
                 self.accuracy[i] = accuracy
                 self.validation_loss[i] = validation_loss
                 self.validation_accuracy[i] = validation_accuracy
-                self.number_features_wolves[i] = number_features
                 self.wolves_positions[i] = positions
+                self.number_features_wolves[i] = number_features
             else:
                 self.loss[i] = self.loss[i - 1]
                 self.accuracy[i] = self.accuracy[i - 1]
                 self.validation_loss[i] = self.validation_loss[i - 1]
                 self.validation_accuracy[i] = self.validation_accuracy[i - 1] 
-                self.number_features_wolves[i] = self.number_features_wolves[i - 1]
-                self.wolves_positions[i] = self.wolves_positions[i - 1]     
+                self.wolves_positions[i] = self.wolves_positions[i - 1]
+                self.number_features_wolves[i] = self.number_features_wolves[i - 1]     
 
     def get_report(self):
 
